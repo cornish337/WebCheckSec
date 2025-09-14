@@ -57,6 +57,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 18px; }
   gap: 10px; cursor: pointer;
 }
 .card.collapsed .card-content { display: none; }
+.subcat.collapsed .item, .subcat.collapsed .subcat-details { display: none; }
 .card .title { font-weight: 700; font-size: 1.05rem; }
 .card .count { color: var(--muted); font-size: 0.85rem; }
 .subcat { 
@@ -181,6 +182,7 @@ footer {
 <script>
 /*** Data Initialization ***/
 const STORAGE_KEY = "webchecklist_v1.0";
+const COLLAPSE_KEY = "webchecklist_collapsed_v1.0";
 const rawData = [
   { category: "Category A",
     subcats: [
@@ -218,13 +220,18 @@ const rawData = [
     ]
   }
 ];
+let collapsedState = {};
 function loadData() {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
+    const collapse = localStorage.getItem(COLLAPSE_KEY);
+    collapsedState = collapse ? JSON.parse(collapse) : {};
+    if (!collapse) localStorage.setItem(COLLAPSE_KEY, JSON.stringify(collapsedState));
     const data = saved ? JSON.parse(saved) : rawData;
     return Array.isArray(data) ? data : rawData;
   } catch (e) {
     console.warn("Failed to parse saved data, resetting.", e);
+    collapsedState = {};
     return rawData;
   }
 }
@@ -483,7 +490,9 @@ function render() {
   let totalCount = 0, doneCount = 0, categoryCount = 0;
   data.forEach(cat => {
     let catTotal = 0, catDone = 0;
+    const catKey = cat.category || "(no category)";
     const card = createElem("div", { className: "card" });
+    if (collapsedState[catKey]) card.classList.add("collapsed");
     // Category header with master checkbox
     const catCheckbox = createElem("input", { type: "checkbox", checked: false });
     // When category checkbox toggled, mark all items in category done/undone
@@ -500,12 +509,16 @@ function render() {
     topBar.addEventListener("click", e => {
       if (e.target !== catCheckbox) {
         card.classList.toggle("collapsed");
+        collapsedState[catKey] = card.classList.contains("collapsed");
+        localStorage.setItem(COLLAPSE_KEY, JSON.stringify(collapsedState));
       }
     });
     const contentWrapper = createElem("div", { className: "card-content" });
     // Subcategories
     cat.subcats.forEach(sc => {
+      const scKey = `${catKey}::${sc.name || "(General)"}`;
       const secDiv = createElem("div", { className: "subcat" });
+      if (collapsedState[scKey]) secDiv.classList.add("collapsed");
       // Subcategory header with checkbox
       const subcatCheckbox = createElem("input", { type: "checkbox", checked: false });
       subcatCheckbox.addEventListener("change", () => {
@@ -513,6 +526,13 @@ function render() {
         updateCounts();
       });
       const subcatHeader = createElem("h3", {}, subcatCheckbox, sc.name || "(General)");
+      subcatHeader.addEventListener("click", e => {
+        if (e.target !== subcatCheckbox) {
+          secDiv.classList.toggle("collapsed");
+          collapsedState[scKey] = secDiv.classList.contains("collapsed");
+          localStorage.setItem(COLLAPSE_KEY, JSON.stringify(collapsedState));
+        }
+      });
       secDiv.append(subcatHeader);
       // We'll append notes and items after filtering
       let anyItemShown = false;
