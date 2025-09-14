@@ -199,7 +199,7 @@ footer {
     <input id="fileInput" type="file" accept=".csv,.json" style="display:none;" />
   </div>
   <div class="small" style="margin-bottom: 10px;">
-    <strong>Tip:</strong> You can import a <b>CSV</b> or <b>JSON</b> file to prefill data. 
+    <strong>Tip:</strong> You can import a <b>CSV</b> or <b>JSON</b> file to prefill data. When importing, you'll be prompted to either MERGE the new data with your current checklist, or REPLACE it entirely.
     CSV header should include: 
     <code>Category, Sub Category, Item, Done, Subtask, Subtask Done, Subtask Hidden, ASVS, Description, Tools, Links, Applicability, Sources, Tags, Priority, Hidden, Subcategory Notes</code>.
   </div>
@@ -319,7 +319,7 @@ function createElem(tag, props = {}, ...children) {
 }
 // Utility: parse CSV text into array of row objects
 function csvToObjects(csvText) {
-  const lines = csvText.split(/\\r?\\n/).filter(l => l.trim().length);
+  const lines = csvText.split(/\r?\n/).filter(l => l.trim().length);
   if (!lines.length) return [];
   const headers = lines[0].split(/,(?=(?:[^"]*\\"[^"]*\\")*[^"]*$)/)
                           .map(h => h.replace(/^"|"$/g, "").trim());
@@ -398,26 +398,26 @@ function mergePrefillRows(rows) {
     }
     // Merge detail fields (append if existing content)
     if (row["ASVS"]) {
-      it.asvs = it.asvs ? it.asvs + "\\n" + row["ASVS"] : row["ASVS"];
+      it.asvs = it.asvs ? it.asvs + "\n" + row["ASVS"] : row["ASVS"];
     }
     if (row["Description"]) {
-      it.desc = it.desc ? it.desc + "\\n\\n" + row["Description"] : row["Description"];
+      it.desc = it.desc ? it.desc + "\n\n" + row["Description"] : row["Description"];
     }
     if (row["Tools"]) {
-      it.tools = it.tools ? it.tools + "\\n\\n" + row["Tools"] : row["Tools"];
+      it.tools = it.tools ? it.tools + "\n\n" + row["Tools"] : row["Tools"];
     }
     if (row["Links"]) {
-      it.links = it.links ? it.links + "\\n\\n" + row["Links"] : row["Links"];
+      it.links = it.links ? it.links + "\n\n" + row["Links"] : row["Links"];
     }
     if (row["Applicability"]) {
-      it.applic = it.applic ? it.applic + "\\n\\n" + row["Applicability"] : row["Applicability"];
+      it.applic = it.applic ? it.applic + "\n\n" + row["Applicability"] : row["Applicability"];
     }
     if (row["Sources"]) {
-      it.sources = it.sources ? it.sources + "\\n\\n" + row["Sources"] : row["Sources"];
+      it.sources = it.sources ? it.sources + "\n\n" + row["Sources"] : row["Sources"];
     }
     // Tags (split and merge)
     if (row["Tags"]) {
-      const tags = row["Tags"].split(/[;,\\s]+/).map(t => t.trim()).filter(Boolean);
+      const tags = row["Tags"].split(/[;,\s]+/).map(t => t.trim()).filter(Boolean);
       it.tags = Array.from(new Set([...(it.tags||[]), ...tags]));
     }
     // Priority
@@ -453,7 +453,7 @@ function mergePrefillRows(rows) {
           sc.notes = note;
         } else if (sc.notes.trim() !== note) {
           // If a different note exists, append (edge case)
-          sc.notes += "\\n" + note;
+          sc.notes += "\n" + note;
         }
       }
     }
@@ -521,7 +521,7 @@ function exportToCSV(dataArr) {
     const str = val == null ? "" : String(val);
     // escape double quotes by doubling them
     return `"${str.replace(/"/g, '""')}"`;
-  }).join(",")).join("\\n");
+  }).join(",")).join("\n");
 }
 
 /*** Rendering ***/
@@ -880,28 +880,56 @@ $("#exportCSV").addEventListener("click", () => {
 $("#fileInput").addEventListener("change", event => {
   const file = event.target.files[0];
   if (!file) return;
-  if (!confirm("Replace existing data?")) {
-    event.target.value = ""; // clear selection to allow re-import later
-    return; // user chose not to replace data
+
+  const wantsMerge = confirm("Do you want to MERGE the imported data with the current checklist?");
+
+  let mode;
+  if (wantsMerge) {
+    mode = 'merge';
+  } else {
+    const wantsReplace = confirm("Do you want to REPLACE the current checklist with the imported data?");
+    if (wantsReplace) {
+      mode = 'replace';
+    } else {
+      event.target.value = ""; // Clear file input
+      return; // User cancelled both
+    }
   }
-  data = []; // reset existing data
-  localStorage.removeItem(STORAGE_KEY);
-  localStorage.removeItem(COLLAPSE_KEY);
+
   const reader = new FileReader();
   reader.onload = e => {
     try {
       const content = e.target.result;
       const name = file.name.toLowerCase();
+
+      if (mode === 'replace') {
+        data = [];
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(COLLAPSE_KEY);
+        collapsedState = {};
+      }
+      // For 'merge', we use the existing 'data' array.
+
       if (name.endsWith(".json")) {
-        const obj = JSON.parse(content);
-        if (Array.isArray(obj) && obj.length && typeof obj[0] === "object") {
-          if ("category" in obj[0] && "items" in obj[0] && !("subcats" in obj[0])) {
-            // Form 1: array of categories with flat items list
-            // (This form might not be used often; but we can transform using logic similar to transformImportedData)
-            data = obj.map(oldCat => {
+        const importedObj = JSON.parse(content);
+        if (!Array.isArray(importedObj)) {
+          alert("Unsupported JSON format. Expecting an array of objects.");
+          return;
+        }
+
+        const isStructured = importedObj.length > 0 && ("subcats" in importedObj[0] || "items" in importedObj[0]);
+
+        if (isStructured) {
+          if (mode === 'merge') {
+            alert("Merging structured JSON is not supported. Please use a flat list of items (like a CSV converted to JSON).");
+            return;
+          }
+          // Replace with structured JSON
+          if ("category" in importedObj[0] && "items" in importedObj[0] && !("subcats" in importedObj[0])) {
+             // This is the old format transformation logic. It creates a new `data` array.
+             // It should only run in replace mode.
+            data = importedObj.map(oldCat => {
               const newCat = { category: oldCat.category, subcats: [] };
-              // The old structure possibly had category with an 'items' array flat and some grouping by ASVS parts
-              // For simplicity, we can push all items under a default subcategory.
               const defaultSub = { name: "(General)", notes: "", items: [] };
               (oldCat.items || []).forEach(item => {
                 const newItem = {
@@ -914,53 +942,43 @@ $("#fileInput").addEventListener("change", event => {
                   tools: item.tools || "",
                   links: item.references || item.links || "",
                   applic: item.applicability || "",
-                  sources: (Array.isArray(item.sources) ? item.sources.join("\\n") : item.sources) || "",
+                  sources: (Array.isArray(item.sources) ? item.sources.join("\n") : item.sources) || "",
                   tags: item.tags || [],
                   subtasks: []
                 };
-                // If the source format had subtasks or additional fields, handle as needed (not detailed here).
                 defaultSub.items.push(newItem);
               });
               newCat.subcats.push(defaultSub);
               return newCat;
             });
-          } else if ("category" in obj[0] && ("subcats" in obj[0] || "subCategories" in obj[0])) {
-            // Form 2: Already nested full dataset form
-            data = obj;
-          } else if (Array.isArray(obj)) {
-            // Form 3: flat array of row objects
-            data = loadData(); // start from current data
-            mergePrefillRows(obj);
-            collapseAll();
-            const statusPill = $("#status-message");
-            statusPill.textContent = `Imported: ${file.name}`;
-            statusPill.style.display = 'inline-block';
-            render();
-            return;
+          } else { // Assumes new, correct format
+            data = importedObj;
           }
-            saveData();
-            collapseAll();
-            const statusPill = $("#status-message");
-            statusPill.textContent = `Imported: ${file.name}`;
-            statusPill.style.display = 'inline-block';
-            render();
         } else {
-          alert("Unrecognized JSON format. Please provide an array of objects.");
+          // Flat list of items, can be merged or replaced.
+          mergePrefillRows(importedObj);
         }
+
       } else if (name.endsWith(".csv")) {
         const rows = csvToObjects(content);
         mergePrefillRows(rows);
-        collapseAll();
-        const statusPill = $("#status-message");
-        statusPill.textContent = `Imported: ${file.name}`;
-        statusPill.style.display = 'inline-block';
-        render();
       } else {
         alert("Unsupported file type. Please import a .csv or .json file.");
+        return;
       }
+
+      saveData();
+      collapseAll();
+      render();
+      const statusPill = $("#status-message");
+      statusPill.textContent = `Imported: ${file.name} (${mode})`;
+      statusPill.style.display = 'inline-block';
+
     } catch (err) {
       console.error("Import failed:", err);
       alert("Failed to import: " + err.message);
+    } finally {
+        event.target.value = ""; // Clear file input
     }
   };
   reader.readAsText(file);
