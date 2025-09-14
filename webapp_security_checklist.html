@@ -317,21 +317,65 @@ function createElem(tag, props = {}, ...children) {
   }
   return el;
 }
-// Utility: parse CSV text into array of row objects
+// Updated Utility: parse CSV text into array of row objects
 function csvToObjects(csvText) {
-  const lines = csvText.split(/\r?\n/).filter(l => l.trim().length);
-  if (!lines.length) return [];
-  const headers = lines[0].split(/,(?=(?:[^"]*\\"[^"]*\\")*[^"]*$)/)
-                          .map(h => h.replace(/^"|"$/g, "").trim());
+  // State machine CSV parser that supports:
+  // - quoted fields
+  // - embedded commas and newlines
+  // - escaped quotes ("")
   const rows = [];
-  for (let i = 1; i < lines.length; i++) {
-    const cols = lines[i].split(/,(?=(?:[^"]*\\"[^"]*\\")*[^"]*$)/)
-                         .map(c => c.replace(/^"|"$/g, ""));
-    const obj = {};
-    headers.forEach((h, idx) => { obj[h] = cols[idx] !== undefined ? cols[idx] : ""; });
-    rows.push(obj);
+  let row = [];
+  let cur = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < csvText.length; i++) {
+    const ch = csvText[i];
+
+    if (ch === '"') {
+      // If in quotes and next char is also a quote, it's an escaped quote
+      if (inQuotes && csvText[i + 1] === '"') {
+        cur += '"';
+        i++; // skip the second quote
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (ch === ',' && !inQuotes) {
+      row.push(cur);
+      cur = '';
+    } else if ((ch === '\n' || ch === '\r') && !inQuotes) {
+      // Finish the field and the row; swallow CRLF
+      row.push(cur);
+      cur = '';
+      if (row.length > 1 || (row.length === 1 && row[0].trim().length)) {
+        rows.push(row);
+      }
+      row = [];
+      if (ch === '\r' && csvText[i + 1] === '\n') i++;
+    } else {
+      cur += ch;
+    }
   }
-  return rows;
+  // Flush last field/row
+  if (cur.length > 0 || row.length > 0) {
+    row.push(cur);
+    rows.push(row);
+  }
+
+  if (!rows.length) return [];
+
+  // Map to objects using header row
+  let headers = rows.shift().map(h => h.replace(/^\uFEFF?/, '').replace(/^"|"$/g, '').trim());
+  // Build objects
+  const out = [];
+  for (const cols of rows) {
+    if (!cols || cols.every(c => !c || !String(c).trim())) continue;
+    const obj = {};
+    headers.forEach((h, idx) => {
+      obj[h] = (cols[idx] !== undefined ? String(cols[idx]) : '').replace(/^"|"$/g, '');
+    });
+    out.push(obj);
+  }
+  return out;
 }
 
 /*** Import Merge Logic ***/
@@ -417,7 +461,7 @@ function mergePrefillRows(rows) {
     }
     // Tags (split and merge)
     if (row["Tags"]) {
-      const tags = row["Tags"].split(/[;,\s]+/).map(t => t.trim()).filter(Boolean);
+      const tags = row["Tags"].split(/[;,]+/).map(t => t.trim()).filter(Boolean);
       it.tags = Array.from(new Set([...(it.tags||[]), ...tags]));
     }
     // Priority
@@ -431,9 +475,9 @@ function mergePrefillRows(rows) {
         // accept textual priorities like "High"/"Low" if present
         const pText = pr.toString().toLowerCase();
         if (pText.includes("high")) it.priority = 3;
+        else if (pText.includes("very low") || pText.includes("very-low")) it.priority = 0;
         else if (pText.includes("medium")) it.priority = 2;
         else if (pText.includes("low")) it.priority = 1;
-        else if (pText.includes("very low") || pText.includes("very-low")) it.priority = 0;
       }
     }
     // Hidden
