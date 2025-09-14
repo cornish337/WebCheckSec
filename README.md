@@ -20,6 +20,8 @@ All changes are saved to your browser’s localStorage, with CSV/JSON import/exp
   - Items or subtasks can be marked hidden  
   - Hidden entries are suppressed unless “Show hidden” is enabled
 - **Subcategory Notes** – add free-text notes at the subcategory level
+- **Visual indicators for completed items** (strikethrough and fade)
+- **Progress bars** for categories and subcategories
 - **Filtering**  
   - Search across Category, Subcategory, Item, Description, Tools, Links, Tags  
   - Filter by Done/Open/All  
@@ -153,6 +155,8 @@ Authentication,Password Policy,Passwords must be at least 12 chars,FALSE,,,,
 * **Extended CSV/JSON schema** with new columns: `Priority`, `Hidden`, `Subtask Hidden`, `Subcategory Notes`
 * **UI enhancements:**
 
+  * Added **progress bars** to category and subcategory headers for at-a-glance completion status.
+  * Completed items are now visually distinct with **strikethrough and reduced opacity**.
   * Collapsible Notes panels at subcategory level
   * Priority filter checkboxes
   * Visual styling for priority levels and hidden items

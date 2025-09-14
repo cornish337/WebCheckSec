@@ -60,6 +60,22 @@ main { max-width: 1200px; margin: 0 auto; padding: 18px; }
 .subcat.collapsed .item, .subcat.collapsed .subcat-details { display: none; }
 .card .title { font-weight: 700; font-size: 1.05rem; }
 .card .count { color: var(--muted); font-size: 0.85rem; }
+
+.progress-bar {
+  background-color: #2a3a4c;
+  border-radius: 4px;
+  height: 8px;
+  width: 100px;
+  margin: 0 10px;
+}
+
+.progress-bar-inner {
+  background-color: var(--accent);
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease-in-out;
+}
+
 .subcat { 
   margin-top: 10px; padding-top: 6px;
   border-top: 1px dashed var(--border);
@@ -107,6 +123,16 @@ main { max-width: 1200px; margin: 0 auto; padding: 18px; }
 .subtask input[type="checkbox"] { transform: scale(1.05); }
 .hidden-item { opacity: 0.6; }       /* Hidden items appear faded when shown */
 .hidden-subtask { opacity: 0.6; font-style: italic; }  /* Hidden subtask style */
+
+/* Styles for completed items */
+.item.done .item-title, .subtask.done {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+.item.done, .subtask.done {
+  opacity: 0.7;
+}
+
 .item.priority-3 { border-left: 4px solid var(--err); }
 .item.priority-2 { border-left: 4px solid var(--warn); }
 .item.priority-1 { border-left: 4px solid var(--ok); opacity: 0.85; } /* low: green-ish, slightly faded */
@@ -516,7 +542,10 @@ function render() {
     });
     const titleEl = createElem("div", { className: "title" }, cat.category || "(no category)");
     const countEl = createElem("div", { className: "count" }, "0/0");
-    const topBar = createElem("div", { className: "top" }, catCheckbox, titleEl, countEl);
+    const progressBar = createElem("div", { className: "progress-bar" });
+    const progressBarInner = createElem("div", { className: "progress-bar-inner" });
+    progressBar.append(progressBarInner);
+    const topBar = createElem("div", { className: "top" }, catCheckbox, titleEl, progressBar, countEl);
     // Click on category bar toggles collapse (ignore clicks on the checkbox itself)
     topBar.addEventListener("click", e => {
       if (e.target !== catCheckbox) {
@@ -537,7 +566,12 @@ function render() {
         sc.items.forEach(it => { it.done = subcatCheckbox.checked; });
         updateCounts();
       });
-      const subcatHeader = createElem("h3", {}, subcatCheckbox, sc.name || "(General)");
+      const subcatTitle = createElem("span", {}, sc.name || "(General)");
+      const subcatCountEl = createElem("div", { className: "count" }, "0/0");
+      const subcatProgressBar = createElem("div", { className: "progress-bar" });
+      const subcatProgressBarInner = createElem("div", { className: "progress-bar-inner" });
+      subcatProgressBar.append(subcatProgressBarInner);
+      const subcatHeader = createElem("h3", {}, subcatCheckbox, subcatTitle, subcatProgressBar, subcatCountEl);
       subcatHeader.addEventListener("click", e => {
         if (e.target !== subcatCheckbox) {
           secDiv.classList.toggle("collapsed");
@@ -548,6 +582,13 @@ function render() {
       secDiv.append(subcatHeader);
       // We'll append notes and items after filtering
       let anyItemShown = false;
+      const subcatTotal = sc.items.length;
+      const subcatDone = sc.items.filter(i => i.done).length;
+      subcatCountEl.textContent = `${subcatDone}/${subcatTotal}`;
+      const subcatProgress = subcatTotal > 0 ? (subcatDone / subcatTotal) * 100 : 0;
+      subcatProgressBarInner.style.width = `${subcatProgress}%`;
+      subcatCheckbox.checked = (subcatDone === subcatTotal && subcatTotal > 0);
+
       sc.items.forEach((it, itIdx) => {
         // Filter conditions:
         if (filterText) {
@@ -570,6 +611,7 @@ function render() {
         // Add priority and hidden CSS classes
         itemDiv.classList.add(`priority-${it.priority !== undefined ? it.priority : 2}`);
         if (it.hidden) itemDiv.classList.add("hidden-item");
+        if (it.done) itemDiv.classList.add("done");
         // Item header with checkbox and title
         const itemHead = createElem("div", { className: "item-head" });
         const itemCb = createElem("input", { type: "checkbox", checked: !!it.done });
@@ -600,6 +642,7 @@ function render() {
             // (We don't filter subtasks by priority or search text separately – assume they fall under item’s filtering)
             const stRow = createElem("div", { className: "subtask" });
             if (st.hidden) stRow.classList.add("hidden-subtask");
+            if (st.done) stRow.classList.add("done");
             const stCb = createElem("input", { type: "checkbox", checked: !!st.done });
             stCb.addEventListener("change", () => {
               st.done = stCb.checked;
@@ -732,6 +775,8 @@ function render() {
     if (catTotal > 0) {
       // Update category completion count in header
       countEl.textContent = `${catDone}/${catTotal}`;
+      const catProgress = catTotal > 0 ? (catDone / catTotal) * 100 : 0;
+      progressBarInner.style.width = `${catProgress}%`;
       card.append(topBar, contentWrapper);
       grid.append(card);
       categoryCount++;
