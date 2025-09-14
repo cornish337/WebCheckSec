@@ -173,6 +173,7 @@ footer {
   <span class="pill" id="overall">0/0 checks completed</span>
   <span class="pill" id="catcount">0 categories</span>
   <span class="pill">Local-only • saves in your browser</span>
+  <span id="status-message" class="pill" style="background-color: var(--accent); color: var(--bg); display: none;"></span>
 </header>
 <main>
   <div class="toolbar">
@@ -527,6 +528,24 @@ function exportToCSV(dataArr) {
 function render() {
   const filterText = $("#search").value.toLowerCase().trim();
   const statusFilter = $("#filter").value;  // "all", "open", or "done"
+
+  const tagMap = new Map();
+  data.forEach((cat, catIdx) => {
+    cat.subcats?.forEach((sc, scIdx) => {
+      sc.items?.forEach((it, itIdx) => {
+        const itemId = `item-${catIdx}-${scIdx}-${itIdx}`;
+        if (it.tags && it.tags.length) {
+          it.tags.forEach(tag => {
+            if (!tagMap.has(tag)) {
+              tagMap.set(tag, []);
+            }
+            tagMap.get(tag).push({ title: it.title || '(no title)', id: itemId });
+          });
+        }
+      });
+    });
+  });
+
   const grid = $("#grid");
   grid.innerHTML = "";  // clear current view
   let totalCount = 0, doneCount = 0, categoryCount = 0;
@@ -544,7 +563,8 @@ function render() {
       });
       updateCounts();
     });
-    const titleEl = createElem("div", { className: "title" }, cat.category || "(no category)");
+    const catTitle = (cat.category || "(no category)").replace(/\s*\([Vv](\d+)\)/, " [V$1]");
+    const titleEl = createElem("div", { className: "title" }, catTitle);
     const countEl = createElem("div", { className: "count" }, "0/0");
     const progressBar = createElem("div", { className: "progress-bar" });
     const progressBarInner = createElem("div", { className: "progress-bar-inner" });
@@ -624,7 +644,9 @@ function render() {
           it.done = itemCb.checked;
           updateCounts();
         });
-        itemHead.append(itemCb, createElem("div", { className: "item-title" }, it.title || "(no title)"));
+        const titleText = it.title || "(no title)";
+        const asvsText = it.asvs ? ` [${it.asvs}]` : "";
+        itemHead.append(itemCb, createElem("div", { className: "item-title" }, titleText + asvsText));
         itemDiv.append(itemHead);
         // Tags
         if (it.tags && it.tags.length) {
@@ -722,21 +744,20 @@ function render() {
         });
         // Related items based on shared tags
         if (it.tags && it.tags.length) {
-          const tagSet = new Set(it.tags);
           const related = new Map();
-          data.forEach((c2, cIdx) => {
-            c2.subcats?.forEach((sc2, sIdx) => {
-              sc2.items?.forEach((other, oIdx) => {
-                if (cIdx === catIdx && sIdx === scIdx && oIdx === itIdx) return;
-                if (other.tags && other.tags.some(t => tagSet.has(t))) {
-                  const key = other.title || `(no title)`;
-                  if (!related.has(key)) {
-                    related.set(key, `item-${cIdx}-${sIdx}-${oIdx}`);
+          it.tags.forEach(tag => {
+            if (tagMap.has(tag)) {
+              tagMap.get(tag).forEach(relatedItem => {
+                // Don't link an item to itself
+                if (relatedItem.id !== itemId) {
+                  if (!related.has(relatedItem.title)) {
+                    related.set(relatedItem.title, relatedItem.id);
                   }
                 }
               });
-            });
+            }
           });
+
           if (related.size > 0) {
             const relHeading = createElem("div", { className: "item-meta" }, "Related items:");
             const relList = createElem("ul", { className: "related-list" });
@@ -817,7 +838,12 @@ $("#showHidden").addEventListener("change", e => {
   showHidden = e.target.checked;
   render();
 });
-$("#save").addEventListener("click", () => { saveData(); alert("Data saved locally."); });
+$("#save").addEventListener("click", () => {
+  saveData();
+  const statusPill = $("#status-message");
+  statusPill.textContent = `Saved locally at ${new Date().toLocaleTimeString()}`;
+  statusPill.style.display = "inline-block";
+});
 $("#reset").addEventListener("click", () => {
   // Reset to embedded rawData snapshot
   data = JSON.parse(JSON.stringify(rawData));
@@ -828,20 +854,28 @@ $("#exportJSON").addEventListener("click", () => {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
-  a.download = "webapp_checklist.json";
+  const filename = "webapp_checklist.json";
+  a.download = filename;
   document.body.appendChild(a);
   a.click();
   a.remove();
+  const statusPill = $("#status-message");
+  statusPill.textContent = `Exported ${filename} at ${new Date().toLocaleTimeString()}`;
+  statusPill.style.display = "inline-block";
 });
 $("#exportCSV").addEventListener("click", () => {
   const csvStr = exportToCSV(data);
   const blob = new Blob([csvStr], { type: "text/csv" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
-  a.download = "webapp_checklist.csv";
+  const filename = "webapp_checklist.csv";
+  a.download = filename;
   document.body.appendChild(a);
   a.click();
   a.remove();
+  const statusPill = $("#status-message");
+  statusPill.textContent = `Exported ${filename} at ${new Date().toLocaleTimeString()}`;
+  statusPill.style.display = "inline-block";
 });
 $("#fileInput").addEventListener("change", event => {
   const file = event.target.files[0];
@@ -898,11 +932,17 @@ $("#fileInput").addEventListener("change", event => {
             data = loadData(); // start from current data
             mergePrefillRows(obj);
             collapseAll();
+            const statusPill = $("#status-message");
+            statusPill.textContent = `Imported: ${file.name}`;
+            statusPill.style.display = 'inline-block';
             render();
             return;
           }
             saveData();
             collapseAll();
+            const statusPill = $("#status-message");
+            statusPill.textContent = `Imported: ${file.name}`;
+            statusPill.style.display = 'inline-block';
             render();
         } else {
           alert("Unrecognized JSON format. Please provide an array of objects.");
@@ -911,6 +951,9 @@ $("#fileInput").addEventListener("change", event => {
         const rows = csvToObjects(content);
         mergePrefillRows(rows);
         collapseAll();
+        const statusPill = $("#status-message");
+        statusPill.textContent = `Imported: ${file.name}`;
+        statusPill.style.display = 'inline-block';
         render();
       } else {
         alert("Unsupported file type. Please import a .csv or .json file.");
