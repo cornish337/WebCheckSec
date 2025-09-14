@@ -750,6 +750,13 @@ $("#exportCSV").addEventListener("click", () => {
 $("#fileInput").addEventListener("change", event => {
   const file = event.target.files[0];
   if (!file) return;
+  if (!confirm("Replace existing data?")) {
+    event.target.value = ""; // clear selection to allow re-import later
+    return; // user chose not to replace data
+  }
+  data = []; // reset existing data
+  localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem(COLLAPSE_KEY);
   const reader = new FileReader();
   reader.onload = e => {
     try {
