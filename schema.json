@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WebAppSecurityChecklist",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["category", "subcats"],
+    "properties": {
+      "category": {
+        "type": "string",
+        "description": "Category name (e.g. 'Authentication', 'Configuration')"
+      },
+      "subcats": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["name", "items"],
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "Subcategory name (e.g. 'Password Policy')"
+            },
+            "notes": {
+              "type": "string",
+              "description": "Optional notes for this subcategory",
+              "default": ""
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["title"],
+                "properties": {
+                  "title": {"type": "string", "description": "The checklist item description/title"},
+                  "done": {"type": "boolean", "description": "Completion status", "default": false},
+                  "hidden": {"type": "boolean", "description": "Hide-by-default flag", "default": false},
+                  "priority": {
+                    "type": "integer",
+                    "description": "Priority level (0=very low, 3=high)",
+                    "minimum": 0, "maximum": 3,
+                    "default": 2
+                  },
+                  "tags": {
+                    "type": "array",
+                    "description": "Labels/tags for grouping related items",
+                    "items": {"type": "string"},
+                    "uniqueItems": true,
+                    "default": []
+                  },
+                  "asvs":   {"type": "string", "description": "ASVS reference(s) for this item", "default": ""},
+                  "desc":   {"type": "string", "description": "Detailed description of the test", "default": ""},
+                  "tools":  {"type": "string", "description": "Tools or methods to test this item", "default": ""},
+                  "links":  {"type": "string", "description": "Reference links (OWASP, docs, etc.)", "default": ""},
+                  "applic": {"type": "string", "description": "Applicability or N/A criteria", "default": ""},
+                  "sources":{"type": "string", "description": "Sources for this test (articles, etc.)", "default": ""},
+                  "subtasks": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": ["text"],
+                      "properties": {
+                        "text":   {"type": "string", "description": "Sub-task description"},
+                        "done":   {"type": "boolean", "description": "Sub-task done status", "default": false},
+                        "hidden": {"type": "boolean", "description": "Sub-task hidden flag", "default": false}
+                      }
+                    },
+                    "default": []
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

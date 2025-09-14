@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Web App Security Checklist – Redesigned</title>
+<style>
+:root {
+  --bg: #0b0f14;
+  --fg: #e8f0ff;
+  --muted: #9fb0c3;
+  --card: #121822;
+  --border: #1f2a37;
+  --accent: #5fb3ff;
+  --ok: #22c55e;   /* green (used for low priority perhaps) */
+  --warn: #f59e0b; /* amber */
+  --err: #ef4444;  /* red */
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: Inter, system-ui, Segoe UI, Roboto, Arial, sans-serif;
+  margin: 0;
+}
+header { 
+  padding: 16px 18px; 
+  border-bottom: 1px solid var(--border); 
+  display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+}
+h1 { font-size: 1.25rem; margin: 0; }
+.pill {
+  background: #0f1722; border: 1px solid var(--border);
+  padding: 6px 10px; border-radius: 999px;
+  color: var(--muted); font-size: 0.9rem;
+}
+main { max-width: 1200px; margin: 0 auto; padding: 18px; }
+.toolbar { 
+  display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+  margin-bottom: 14px;
+}
+.toolbar input, .toolbar select, .toolbar button, label.button {
+  background: #0e1622; color: var(--fg);
+  border: 1px solid var(--border); border-radius: 10px;
+  padding: 8px 12px; cursor: pointer;
+  font: inherit;
+}
+.toolbar .small { font-size: 0.85rem; color: var(--muted); }
+.grid { 
+  display: grid; gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+}
+.card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 14px; padding: 12px;
+}
+.card .top { 
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; cursor: pointer;
+}
+.card.collapsed .card-content { display: none; }
+.card .title { font-weight: 700; font-size: 1.05rem; }
+.card .count { color: var(--muted); font-size: 0.85rem; }
+.subcat { 
+  margin-top: 10px; padding-top: 6px;
+  border-top: 1px dashed var(--border);
+}
+.subcat h3 {
+  margin: 6px 0 8px; font-size: 0.95rem; color: #cfe4ff;
+  display: flex; align-items: center; gap: 6px;
+}
+.subcat h3 input[type="checkbox"] { transform: scale(1.1); margin-right: 4px; }
+.subcat-details summary {
+  cursor: pointer; color: var(--accent);
+  font-weight: 600; margin-top: 4px;
+}
+.item {
+  background: #0c1420; border: 1px solid var(--border);
+  border-radius: 10px; padding: 8px;
+  margin-bottom: 8px;
+  position: relative;
+}
+.item-head { display: flex; align-items: center; gap: 8px; }
+.item-head input[type="checkbox"] { transform: scale(1.15); }
+.item-title { flex: 1; }
+.item-meta {
+  color: var(--muted); font-size: 0.85rem;
+  margin-top: 4px;
+}
+.tags { 
+  display: flex; gap: 6px; flex-wrap: wrap;
+  margin: 4px 0 6px 0;
+}
+.tag {
+  font-size: 0.75rem; padding: 2px 8px;
+  border: 1px solid var(--border); border-radius: 999px;
+  background: #0b1a2a; color: #b8cff0;
+  cursor: pointer;
+}
+.subtasks {
+  margin-top: 6px; padding-left: 14px;
+  border-left: 2px solid #1e293b;
+}
+.subtask {
+  display: flex; align-items: center; gap: 6px;
+  margin: 4px 0;
+}
+.subtask input[type="checkbox"] { transform: scale(1.05); }
+.hidden-item { opacity: 0.6; }       /* Hidden items appear faded when shown */
+.hidden-subtask { opacity: 0.6; font-style: italic; }  /* Hidden subtask style */
+.item.priority-3 { border-left: 4px solid var(--err); }
+.item.priority-2 { border-left: 4px solid var(--warn); }
+.item.priority-1 { border-left: 4px solid var(--ok); opacity: 0.85; } /* low: green-ish, slightly faded */
+.item.priority-0 { border-left: 4px solid #6b7280; } /* very low: gray */
+details summary {
+  cursor: pointer; color: var(--accent);
+  font-weight: 600; margin-top: 8px;
+}
+textarea, select {
+  width: 100%; 
+  background: #0b111a; color: var(--fg);
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: 6px 8px; margin-top: 4px;
+  font: inherit;
+}
+.item-meta select { 
+  background: #0b111a; color: var(--fg);
+  border: 1px solid var(--border); border-radius: 6px;
+  padding: 4px 6px; margin-left: 6px;
+}
+.item-meta input[type="checkbox"] {
+  transform: scale(1.0); margin-right: 4px;
+  accent-color: var(--accent);
+}
+footer {
+  color: var(--muted); text-align: center; padding: 12px;
+  font-size: 0.8rem;
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>Web App Security Checklist – Category/Subtask View</h1>
+  <span class="pill" id="overall">0/0 checks completed</span>
+  <span class="pill" id="catcount">0 categories</span>
+  <span class="pill">Local-only • saves in your browser</span>
+</header>
+<main>
+  <div class="toolbar">
+    <input id="search" type="text" placeholder="Search..." />
+    <select id="filter">
+      <option value="all">All</option>
+      <option value="open">Open</option>
+      <option value="done">Completed</option>
+    </select>
+    <!-- Priority filter checkboxes -->
+    <span class="small">Priority:</span>
+    <label class="small"><input type="checkbox" class="prioChk" value="3" checked /> High</label>
+    <label class="small"><input type="checkbox" class="prioChk" value="2" checked /> Med</label>
+    <label class="small"><input type="checkbox" class="prioChk" value="1" checked /> Low</label>
+    <label class="small"><input type="checkbox" class="prioChk" value="0" checked /> Very Low</label>
+    <label class="small"><input id="showHidden" type="checkbox" /> Show hidden</label>
+    <!-- Action buttons -->
+    <button id="save">Save (local)</button>
+    <button id="exportJSON">Export JSON</button>
+    <button id="exportCSV">Export CSV</button>
+    <button id="reset">Reset (from file)</button>
+    <label for="fileInput" class="button">Import Prefill (CSV/JSON)</label>
+    <input id="fileInput" type="file" accept=".csv,.json" style="display:none;" />
+  </div>
+  <div class="small" style="margin-bottom: 10px;">
+    <strong>Tip:</strong> You can import a <b>CSV</b> or <b>JSON</b> file to prefill data. 
+    CSV header should include: 
+    <code>Category, Sub Category, Item, Done, Subtask, Subtask Done, Subtask Hidden, ASVS, Description, Tools, Links, Applicability, Sources, Tags, Priority, Hidden, Subcategory Notes</code>.
+  </div>
+  <div id="grid" class="grid"></div>
+  <p style="font-size:0.85rem; color: var(--muted);">
+    Each category card contains sub-categories, which contain items (with checkboxes). Items may have sub-tasks (nested checkboxes) and an expandable <em>Details</em> section (ASVS, description, etc.). Use the filters above to narrow the list by text, completion status, or priority. Hidden items are omitted by default (enable "Show hidden" to view them). Your changes auto-save locally; use Export to save your progress externally.
+  </p>
+</main>
+<footer>Offline checklist tool – no server required. Data stays in your browser (export to share).</footer>
+
+<script>
+/*** Data Initialization ***/
+const STORAGE_KEY = "webchecklist_v1.0";
+const rawData = [
+  { category: "Category A",
+    subcats: [
+      { name: "Subcat A1", notes: "",
+        items: [
+          { title: "Visible Item", done: false, hidden: false, priority: 3,
+            asvs: "", desc: "Example item (high priority).", tools: "", links: "", applic: "", sources: "",
+            tags: ["auth","session"], subtasks: []
+          }
+        ]
+      },
+      { name: "Subcat A2", notes: "This subcategory has a note.",
+        items: [
+          { title: "Hidden Item", done: false, hidden: true, priority: 1,
+            asvs: "", desc: "This is a low-priority item hidden by default.", tools: "", links: "", applic: "", sources: "",
+            tags: [], subtasks: []
+          }
+        ]
+      }
+    ]
+  },
+  { category: "Category B",
+    subcats: [
+      { name: "Subcat B1", notes: "",
+        items: [
+          { title: "Item with Subtasks", done: false, hidden: false, priority: 2,
+            asvs: "", desc: "An item with one hidden subtask.", tools: "", links: "", applic: "", sources: "",
+            tags: ["files"], subtasks: [
+              { text: "Visible subtask", done: false, hidden: false },
+              { text: "Hidden subtask", done: false, hidden: true }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+];
+function loadData() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    const data = saved ? JSON.parse(saved) : rawData;
+    return Array.isArray(data) ? data : rawData;
+  } catch (e) {
+    console.warn("Failed to parse saved data, resetting.", e);
+    return rawData;
+  }
+}
+function saveData() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+/*** State Variables ***/
+let data = loadData();
+// Ensure new fields exist with defaults for all items/subtasks:
+data.forEach(cat => {
+  cat.subcats?.forEach(sc => {
+    sc.notes = sc.notes || "";
+    sc.items?.forEach(it => {
+      if (it.hidden === undefined) it.hidden = false;
+      if (it.priority === undefined) it.priority = 2;
+      it.tags = Array.isArray(it.tags) ? it.tags : (it.tags ? String(it.tags).split(/[\\s,;]+/).filter(Boolean) : []);
+      it.subtasks?.forEach(st => {
+        if (st.hidden === undefined) st.hidden = false;
+      });
+    });
+  });
+});
+let tagFilter = "";               // current tag filter (one tag at a time)
+let showHidden = false;          // whether to show hidden items
+const prioFilterSet = new Set([0,1,2,3]);  // which priority levels are shown
+
+/*** Helper Functions ***/
+const $ = sel => document.querySelector(sel);
+function createElem(tag, props = {}, ...children) {
+  const el = document.createElement(tag);
+  Object.assign(el, props);
+  for (let child of children) {
+    if (typeof child === "string") {
+      el.append(document.createTextNode(child));
+    } else if (child) {
+      el.append(child);
+    }
+  }
+  return el;
+}
+// Utility: parse CSV text into array of row objects
+function csvToObjects(csvText) {
+  const lines = csvText.split(/\\r?\\n/).filter(l => l.trim().length);
+  if (!lines.length) return [];
+  const headers = lines[0].split(/,(?=(?:[^"]*\\"[^"]*\\")*[^"]*$)/)
+                          .map(h => h.replace(/^"|"$/g, "").trim());
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const cols = lines[i].split(/,(?=(?:[^"]*\\"[^"]*\\")*[^"]*$)/)
+                         .map(c => c.replace(/^"|"$/g, ""));
+    const obj = {};
+    headers.forEach((h, idx) => { obj[h] = cols[idx] !== undefined ? cols[idx] : ""; });
+    rows.push(obj);
+  }
+  return rows;
+}
+
+/*** Import Merge Logic ***/
+function ensureCategory(dataArr, catName) {
+  const name = (catName || "").trim();
+  if (!name) return null;
+  let cat = dataArr.find(c => c.category.toLowerCase() === name.toLowerCase());
+  if (!cat) {
+    cat = { category: name, subcats: [] };
+    dataArr.push(cat);
+  }
+  return cat;
+}
+function ensureSubcat(catObj, subName) {
+  const name = (subName || "(General)").trim() || "(General)";
+  let sc = catObj.subcats.find(s => s.name.toLowerCase() === name.toLowerCase());
+  if (!sc) {
+    sc = { name: name, notes: "", items: [] };
+    catObj.subcats.push(sc);
+  }
+  return sc;
+}
+function ensureItem(subcatObj, itemTitle) {
+  const title = (itemTitle || "(no title)").trim() || "(no title)";
+  let it = subcatObj.items.find(it => it.title.toLowerCase() === title.toLowerCase());
+  if (!it) {
+    it = { title: title, done: false, hidden: false, priority: 2,
+           asvs: "", desc: "", tools: "", links: "", applic: "", sources: "",
+           tags: [], subtasks: [] };
+    subcatObj.items.push(it);
+  }
+  return it;
+}
+function mergePrefillRows(rows) {
+  rows.forEach(row => {
+    const cat = ensureCategory(data, row["Category"]);
+    if (!cat) return;
+    const sc = ensureSubcat(cat, row["Sub Category"]);
+    const it = ensureItem(sc, row["Item"]);
+    // Main item done status
+    const doneVal = (row["Done"] || "").toString().trim().toLowerCase();
+    if (doneVal === "true" || doneVal === "1" || doneVal === "yes") {
+      it.done = true;
+    } else if (doneVal === "false" || doneVal === "0" || doneVal === "no") {
+      it.done = false;
+    }
+    // Subtask (if present)
+    const subtaskText = (row["Subtask"] || "").trim();
+    if (subtaskText) {
+      const subDoneVal = (row["Subtask Done"] || "").toString().trim().toLowerCase();
+      const subHiddenVal = (row["Subtask Hidden"] || "").toString().trim().toLowerCase();
+      const stDone = (subDoneVal === "true" || subDoneVal === "1" || subDoneVal === "yes");
+      const stHidden = (subHiddenVal === "true" || subHiddenVal === "1" || subHiddenVal === "yes");
+      // find or add subtask
+      it.subtasks = it.subtasks || [];
+      const existingSt = it.subtasks.find(s => s.text === subtaskText);
+      if (!existingSt) {
+        it.subtasks.push({ text: subtaskText, done: stDone, hidden: stHidden });
+      } else {
+        // If it exists, optionally update its done/hidden if provided
+        if (existingSt.done !== stDone) existingSt.done = stDone;
+        if (existingSt.hidden !== stHidden) existingSt.hidden = stHidden;
+      }
+    }
+    // Merge detail fields (append if existing content)
+    if (row["ASVS"]) {
+      it.asvs = it.asvs ? it.asvs + "\\n" + row["ASVS"] : row["ASVS"];
+    }
+    if (row["Description"]) {
+      it.desc = it.desc ? it.desc + "\\n\\n" + row["Description"] : row["Description"];
+    }
+    if (row["Tools"]) {
+      it.tools = it.tools ? it.tools + "\\n\\n" + row["Tools"] : row["Tools"];
+    }
+    if (row["Links"]) {
+      it.links = it.links ? it.links + "\\n\\n" + row["Links"] : row["Links"];
+    }
+    if (row["Applicability"]) {
+      it.applic = it.applic ? it.applic + "\\n\\n" + row["Applicability"] : row["Applicability"];
+    }
+    if (row["Sources"]) {
+      it.sources = it.sources ? it.sources + "\\n\\n" + row["Sources"] : row["Sources"];
+    }
+    // Tags (split and merge)
+    if (row["Tags"]) {
+      const tags = row["Tags"].split(/[;,\\s]+/).map(t => t.trim()).filter(Boolean);
+      it.tags = Array.from(new Set([...(it.tags||[]), ...tags]));
+    }
+    // Priority
+    if (row["Priority"] !== undefined && row["Priority"] !== "") {
+      const pr = row["Priority"];
+      let prNum = (typeof pr === "number") ? pr : parseInt(pr);
+      if (!isNaN(prNum)) {
+        prNum = Math.max(0, Math.min(3, prNum));
+        it.priority = prNum;
+      } else {
+        // accept textual priorities like "High"/"Low" if present
+        const pText = pr.toString().toLowerCase();
+        if (pText.includes("high")) it.priority = 3;
+        else if (pText.includes("medium")) it.priority = 2;
+        else if (pText.includes("low")) it.priority = 1;
+        else if (pText.includes("very low") || pText.includes("very-low")) it.priority = 0;
+      }
+    }
+    // Hidden
+    if (row["Hidden"] !== undefined && row["Hidden"] !== "") {
+      const hidVal = row["Hidden"].toString().trim().toLowerCase();
+      if (hidVal === "true" || hidVal === "1" || hidVal === "yes") {
+        it.hidden = true;
+      } else if (hidVal === "false" || hidVal === "0" || hidVal === "no") {
+        it.hidden = false;
+      }
+    }
+    // Subcategory Notes
+    if (row["Subcategory Notes"]) {
+      const note = row["Subcategory Notes"].trim();
+      if (note) {
+        if (!sc.notes || !sc.notes.trim()) {
+          sc.notes = note;
+        } else if (sc.notes.trim() !== note) {
+          // If a different note exists, append (edge case)
+          sc.notes += "\\n" + note;
+        }
+      }
+    }
+  });
+  saveData();
+  render();
+}
+
+/*** Export Functions ***/
+function exportToCSV(dataArr) {
+  const header = ["Category","Sub Category","Item","Done",
+                  "Subtask","Subtask Done","Subtask Hidden",
+                  "ASVS","Description","Tools","Links","Applicability","Sources","Tags",
+                  "Priority","Hidden","Subcategory Notes"];
+  const rows = [header];
+  dataArr.forEach(cat => {
+    cat.subcats.forEach(sc => {
+      let subcatNoteOutput = false;
+      sc.items.forEach((it, itemIndex) => {
+        // Helper to output a row (either item or subtask row)
+        const outputRow = (subText, subDone, subHidden, noteVal) => {
+          rows.push([
+            cat.category,
+            sc.name,
+            it.title,
+            it.done ? "TRUE" : "FALSE",
+            subText, 
+            subDone,
+            subHidden,
+            it.asvs || "",
+            it.desc || "",
+            it.tools || "",
+            it.links || "",
+            it.applic || "",
+            it.sources || "",
+            (it.tags||[]).join(" "),
+            it.priority !== undefined ? String(it.priority) : "",
+            it.hidden ? "TRUE" : "FALSE",
+            noteVal
+          ]);
+        };
+        if (Array.isArray(it.subtasks) && it.subtasks.length > 0) {
+          it.subtasks.forEach((st, stIndex) => {
+            // Only include subcategory note on the *first* output row of this subcategory
+            let noteVal = "";
+            if (!subcatNoteOutput) {
+              noteVal = sc.notes || "";
+              subcatNoteOutput = true;
+            }
+            outputRow(st.text, st.done ? "TRUE":"FALSE", st.hidden ? "TRUE":"FALSE", noteVal);
+          });
+        } else {
+          // No subtask row; output the item itself
+          let noteVal = "";
+          if (!subcatNoteOutput) {
+            noteVal = sc.notes || "";
+            subcatNoteOutput = true;
+          }
+          outputRow("", "", "", noteVal);
+        }
+      });
+    });
+  });
+  // Escape and quote each field, then join
+  return rows.map(cols => cols.map(val => {
+    const str = val == null ? "" : String(val);
+    // escape double quotes by doubling them
+    return `"${str.replace(/"/g, '""')}"`;
+  }).join(",")).join("\\n");
+}
+
+/*** Rendering ***/
+function render() {
+  const filterText = $("#search").value.toLowerCase().trim();
+  const statusFilter = $("#filter").value;  // "all", "open", or "done"
+  const grid = $("#grid");
+  grid.innerHTML = "";  // clear current view
+  let totalCount = 0, doneCount = 0, categoryCount = 0;
+  data.forEach(cat => {
+    let catTotal = 0, catDone = 0;
+    const card = createElem("div", { className: "card" });
+    // Category header with master checkbox
+    const catCheckbox = createElem("input", { type: "checkbox", checked: false });
+    // When category checkbox toggled, mark all items in category done/undone
+    catCheckbox.addEventListener("change", () => {
+      cat.subcats.forEach(sc => {
+        sc.items.forEach(it => { it.done = catCheckbox.checked; });
+      });
+      updateCounts();
+    });
+    const titleEl = createElem("div", { className: "title" }, cat.category || "(no category)");
+    const countEl = createElem("div", { className: "count" }, "0/0");
+    const topBar = createElem("div", { className: "top" }, catCheckbox, titleEl, countEl);
+    // Click on category bar toggles collapse (ignore clicks on the checkbox itself)
+    topBar.addEventListener("click", e => {
+      if (e.target !== catCheckbox) {
+        card.classList.toggle("collapsed");
+      }
+    });
+    const contentWrapper = createElem("div", { className: "card-content" });
+    // Subcategories
+    cat.subcats.forEach(sc => {
+      const secDiv = createElem("div", { className: "subcat" });
+      // Subcategory header with checkbox
+      const subcatCheckbox = createElem("input", { type: "checkbox", checked: false });
+      subcatCheckbox.addEventListener("change", () => {
+        sc.items.forEach(it => { it.done = subcatCheckbox.checked; });
+        updateCounts();
+      });
+      const subcatHeader = createElem("h3", {}, subcatCheckbox, sc.name || "(General)");
+      secDiv.append(subcatHeader);
+      // We'll append notes and items after filtering
+      let anyItemShown = false;
+      sc.items.forEach(it => {
+        // Filter conditions:
+        if (filterText) {
+          // Build a haystack of searchable text: category + subcat + item title + tags + description + tools + links
+          const hay = (cat.category + " " + sc.name + " " + it.title + " " +
+                       (it.tags || []).join(" ") + " " + (it.asvs || "") + " " +
+                       (it.desc || "") + " " + (it.tools || "") + " " + (it.links || "")).toLowerCase();
+          if (!hay.includes(filterText)) return;  // text filter not matched
+        }
+        if (tagFilter && !(it.tags || []).includes(tagFilter)) return;  // tag filter active and item doesn't have it
+        if (!showHidden && it.hidden) return;  // hidden items filtered out
+        if (statusFilter === "open" && it.done) return;    // skip done items
+        if (statusFilter === "done" && !it.done) return;   // skip open items
+        if (!prioFilterSet.has(it.priority ?? 2)) return;  // skip if priority not selected
+        // If we reach here, item should be shown
+        anyItemShown = true;
+        const itemDiv = createElem("div", { className: "item" });
+        // Add priority and hidden CSS classes
+        itemDiv.classList.add(`priority-${it.priority !== undefined ? it.priority : 2}`);
+        if (it.hidden) itemDiv.classList.add("hidden-item");
+        // Item header with checkbox and title
+        const itemHead = createElem("div", { className: "item-head" });
+        const itemCb = createElem("input", { type: "checkbox", checked: !!it.done });
+        itemCb.addEventListener("change", () => {
+          it.done = itemCb.checked;
+          updateCounts();
+        });
+        itemHead.append(itemCb, createElem("div", { className: "item-title" }, it.title || "(no title)"));
+        itemDiv.append(itemHead);
+        // Tags
+        if (it.tags && it.tags.length) {
+          const tagsDiv = createElem("div", { className: "tags" });
+          it.tags.forEach(tag => {
+            const tagSpan = createElem("span", { className: "tag" }, tag);
+            tagSpan.addEventListener("click", () => {
+              tagFilter = (tagFilter === tag ? "" : tag);
+              render();
+            });
+            tagsDiv.append(tagSpan);
+          });
+          itemDiv.append(tagsDiv);
+        }
+        // Subtasks (if any)
+        if (Array.isArray(it.subtasks) && it.subtasks.length > 0) {
+          const stContainer = createElem("div", { className: "subtasks" });
+          it.subtasks.forEach(st => {
+            if (!showHidden && st.hidden) return; // hide hidden subtask unless toggled
+            // (We don't filter subtasks by priority or search text separately – assume they fall under item’s filtering)
+            const stRow = createElem("div", { className: "subtask" });
+            if (st.hidden) stRow.classList.add("hidden-subtask");
+            const stCb = createElem("input", { type: "checkbox", checked: !!st.done });
+            stCb.addEventListener("change", () => {
+              st.done = stCb.checked;
+              updateCounts();
+            });
+            stRow.append(stCb, createElem("div", {}, st.text));
+            stContainer.append(stRow);
+          });
+          if (stContainer.children.length > 0) {
+            itemDiv.append(stContainer);
+          }
+        }
+        // Details section (collapsible)
+        const detailsEl = createElem("details", {});
+        const summaryEl = createElem("summary", {}, "Details");
+        detailsEl.append(summaryEl);
+        // Priority selector
+        const prioLabel = createElem("label", { className: "item-meta" });
+        const prioSelect = createElem("select", {});
+        ["3 - High","2 - Medium","1 - Low","0 - Very Low"].forEach(optionText => {
+          const opt = createElem("option", {});
+          opt.value = optionText[0];  // first char is the number
+          opt.textContent = optionText;
+          if (parseInt(opt.value) === (it.priority ?? 2)) {
+            opt.selected = true;
+          }
+          prioSelect.append(opt);
+        });
+        prioSelect.addEventListener("change", () => {
+          it.priority = parseInt(prioSelect.value);
+          saveData();
+          render();  // re-render to update item order/color if needed
+        });
+        prioLabel.append("Priority: ", prioSelect);
+        detailsEl.append(prioLabel);
+        // Hide toggle
+        const hideLabel = createElem("label", { className: "item-meta" });
+        const hideCheck = createElem("input", { type: "checkbox", checked: !!it.hidden });
+        hideCheck.addEventListener("change", () => {
+          it.hidden = hideCheck.checked;
+          saveData();
+          render();
+        });
+        hideLabel.append(hideCheck, " Hide by default");
+        detailsEl.append(hideLabel);
+        // Editable text fields (ASVS, Description, etc.)
+        const metaFields = [
+          ["ASVS", it.asvs || ""],
+          ["Description", it.desc || ""],
+          ["Tools", it.tools || ""],
+          ["Links", it.links || ""],
+          ["Applicability / N/A", it.applic || ""],
+          ["Sources", it.sources || ""]
+        ];
+        metaFields.forEach(([label, text]) => {
+          detailsEl.append(createElem("div", { className: "item-meta" }, label));
+          const textarea = createElem("textarea", {});
+          textarea.value = text;
+          textarea.addEventListener("input", () => {
+            // Save changes to corresponding field
+            switch(label) {
+              case "ASVS": it.asvs = textarea.value; break;
+              case "Description": it.desc = textarea.value; break;
+              case "Tools": it.tools = textarea.value; break;
+              case "Links": it.links = textarea.value; break;
+              case "Applicability / N/A": it.applic = textarea.value; break;
+              case "Sources": it.sources = textarea.value; break;
+            }
+            saveData();
+          });
+          detailsEl.append(textarea);
+        });
+        itemDiv.append(detailsEl);
+        secDiv.append(itemDiv);
+        // Update counters
+        catTotal++;
+        if (it.done) catDone++;
+        totalCount++;
+        if (it.done) doneCount++;
+      }); // end items loop
+      // Append subcategory notes section if anyItemShown and if notes exist or we want to allow adding notes
+      if (anyItemShown) {
+        // Insert subcategory notes details after header
+        const notesDetails = createElem("details", { className: "subcat-details" });
+        const notesSummary = createElem("summary", {}, "Notes");
+        notesDetails.append(notesSummary);
+        const notesArea = createElem("textarea", {});
+        notesArea.value = sc.notes || "";
+        notesArea.addEventListener("input", () => {
+          sc.notes = notesArea.value;
+          saveData();
+        });
+        notesDetails.append(notesArea);
+        // If there's no note content, we could leave it closed by default (details default is closed anyway).
+        secDiv.insertBefore(notesDetails, secDiv.children[1] || null);
+        contentWrapper.append(secDiv);
+      }
+    }); // end subcats loop
+    if (catTotal > 0) {
+      // Update category completion count in header
+      countEl.textContent = `${catDone}/${catTotal}`;
+      card.append(topBar, contentWrapper);
+      grid.append(card);
+      categoryCount++;
+      // Mark category checkbox checked state if all items done (and not zero items)
+      catCheckbox.checked = (catDone === catTotal);
+    }
+  }); // end categories loop
+  // Update overall counters
+  $("#overall").textContent = `${doneCount}/${totalCount} checks completed`;
+  $("#catcount").textContent = `${categoryCount} categories`;
+}
+function updateCounts() {
+  saveData();
+  render();
+}
+
+/*** Event Listeners for Filters and Buttons ***/
+$("#search").addEventListener("input", () => { render(); });
+$("#filter").addEventListener("change", () => { render(); });
+document.querySelectorAll(".prioChk").forEach(cb => {
+  cb.addEventListener("change", e => {
+    const val = parseInt(e.target.value);
+    if (e.target.checked) {
+      prioFilterSet.add(val);
+    } else {
+      prioFilterSet.delete(val);
+    }
+    render();
+  });
+});
+$("#showHidden").addEventListener("change", e => {
+  showHidden = e.target.checked;
+  render();
+});
+$("#save").addEventListener("click", () => { saveData(); alert("Data saved locally."); });
+$("#reset").addEventListener("click", () => {
+  // Reset to embedded rawData snapshot
+  data = JSON.parse(JSON.stringify(rawData));
+  saveData();
+  render();
+});
+$("#exportJSON").addEventListener("click", () => {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "webapp_checklist.json";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+});
+$("#exportCSV").addEventListener("click", () => {
+  const csvStr = exportToCSV(data);
+  const blob = new Blob([csvStr], { type: "text/csv" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "webapp_checklist.csv";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+});
+$("#fileInput").addEventListener("change", event => {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const content = e.target.result;
+      const name = file.name.toLowerCase();
+      if (name.endsWith(".json")) {
+        const obj = JSON.parse(content);
+        if (Array.isArray(obj) && obj.length && typeof obj[0] === "object") {
+          if ("category" in obj[0] && "items" in obj[0] && !("subcats" in obj[0])) {
+            // Form 1: array of categories with flat items list
+            // (This form might not be used often; but we can transform using logic similar to transformImportedData)
+            data = obj.map(oldCat => {
+              const newCat = { category: oldCat.category, subcats: [] };
+              // The old structure possibly had category with an 'items' array flat and some grouping by ASVS parts
+              // For simplicity, we can push all items under a default subcategory.
+              const defaultSub = { name: "(General)", notes: "", items: [] };
+              (oldCat.items || []).forEach(item => {
+                const newItem = {
+                  title: item.title || "(no title)",
+                  done: false,
+                  hidden: false,
+                  priority: 2,
+                  asvs: item.asvs || "",
+                  desc: item.simple_desc || item.desc || "",
+                  tools: item.tools || "",
+                  links: item.references || item.links || "",
+                  applic: item.applicability || "",
+                  sources: (Array.isArray(item.sources) ? item.sources.join("\\n") : item.sources) || "",
+                  tags: item.tags || [],
+                  subtasks: []
+                };
+                // If the source format had subtasks or additional fields, handle as needed (not detailed here).
+                defaultSub.items.push(newItem);
+              });
+              newCat.subcats.push(defaultSub);
+              return newCat;
+            });
+          } else if ("category" in obj[0] && ("subcats" in obj[0] || "subCategories" in obj[0])) {
+            // Form 2: Already nested full dataset form
+            data = obj;
+          } else if (Array.isArray(obj)) {
+            // Form 3: flat array of row objects
+            data = loadData(); // start from current data
+            mergePrefillRows(obj);
+            return; // mergePrefillRows calls render
+          }
+          saveData();
+          render();
+        } else {
+          alert("Unrecognized JSON format. Please provide an array of objects.");
+        }
+      } else if (name.endsWith(".csv")) {
+        const rows = csvToObjects(content);
+        mergePrefillRows(rows);
+      } else {
+        alert("Unsupported file type. Please import a .csv or .json file.");
+      }
+    } catch (err) {
+      console.error("Import failed:", err);
+      alert("Failed to import: " + err.message);
+    }
+  };
+  reader.readAsText(file);
+});
+
+/*** Initial Render ***/
+render();
+</script>
+</body>
+</html>
