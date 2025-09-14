@@ -162,5 +162,8 @@ Authentication,Password Policy,Passwords must be at least 12 chars,FALSE,,,,
   * Visual styling for priority levels and hidden items
 * **Bugfix:** Open/Done filter logic completed
 * **Security:** All new fields treated as plain text; no change to safe rendering model
+* **ASVS Version Display:** The application now displays the ASVS version in brackets next to the relevant category or item title if it's available in the data.
+* **File Status Notifications:** A status pill in the header now provides feedback when a user imports, saves, or exports a file, showing the last action taken.
+* **Performance:** Optimized the "Related Items" feature by pre-calculating tag relationships, resulting in faster rendering for large checklists.
 
 ---
