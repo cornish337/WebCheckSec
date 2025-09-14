@@ -48,14 +48,18 @@ main { max-width: 1200px; margin: 0 auto; padding: 18px; }
   display: grid; gap: 14px;
   grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
 }
-.card {
-  background: var(--card); border: 1px solid var(--border);
-  border-radius: 14px; padding: 12px;
-}
-.card .top { 
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 10px; cursor: pointer;
-}
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 14px; padding: 12px;
+  }
+  .card.cat-priority-3 { border-left: 4px solid var(--err); }
+  .card.cat-priority-2 { border-left: 4px solid var(--warn); }
+  .card.cat-priority-1 { border-left: 4px solid var(--ok); }
+  .card.cat-priority-0 { border-left: 4px solid #6b7280; }
+  .card .top {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 10px; cursor: pointer;
+  }
 .card.collapsed .card-content { display: none; }
 .subcat.collapsed .item, .subcat.collapsed .subcat-details { display: none; }
 .card .title { font-weight: 700; font-size: 1.05rem; }
@@ -501,7 +505,7 @@ function render() {
   grid.innerHTML = "";  // clear current view
   let totalCount = 0, doneCount = 0, categoryCount = 0;
   data.forEach((cat, catIdx) => {
-    let catTotal = 0, catDone = 0;
+    let catTotal = 0, catDone = 0, catPriority = -1;
     const catKey = cat.category || "(no category)";
     const card = createElem("div", { className: "card" });
     if (collapsedState[catKey]) card.classList.add("collapsed");
@@ -564,6 +568,7 @@ function render() {
         if (!prioFilterSet.has(it.priority ?? 2)) return;  // skip if priority not selected
         // If we reach here, item should be shown
         anyItemShown = true;
+        catPriority = Math.max(catPriority, it.priority ?? 2);
         const itemDiv = createElem("div", { className: "item" });
         const itemId = `item-${catIdx}-${scIdx}-${itIdx}`;
         itemDiv.id = itemId;
@@ -732,6 +737,7 @@ function render() {
     if (catTotal > 0) {
       // Update category completion count in header
       countEl.textContent = `${catDone}/${catTotal}`;
+      card.classList.add(`cat-priority-${catPriority}`);
       card.append(topBar, contentWrapper);
       grid.append(card);
       categoryCount++;
