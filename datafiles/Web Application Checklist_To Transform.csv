@@ -1,0 +1,302 @@
+Category,Sub Category,Check Name,Completed,Hide By Default,Priority,Description of Issue,Tools,Links to Tools or how to run,Applicability / N/A,Sources,AVSS Mapping,CWE,NIST Mapping
+GENERAL,Baseline checks and enumeration,Run ranger automation,No,No,3,,,,,,,,
+,,"Directory, header, file and parameter enumeration",No,No,2,,,,,,,,
+"Architecture, Design and Threat Modeling Requirements (V1)",SDLC,SDLC to address security in all development stages,,Yes,0,,,,,,1.1.1,,
+,,Threat modelling is in place for all design changes or sprint planning,,Yes,0,,,,,,1.1.2,1053,
+,,Verify all user stories consider security constraints (e.g. a user should be able to edit their profile but not others),,Yes,0,,,,,,1.1.3,1110,
+,,Verify documentation and justification of trust boundaries,,Yes,0,,,,,,1.1.4,1059,
+,,,,Yes,0,,,,,,1.1.5,1059,
+,,,,Yes,0,,,,,,1.1.6,637,
+,,,,Yes,0,,,,,,1.1.7,637,
+,Authentication Architectural Requirements,Verify use of low privilege OS accounts for applications,,Yes,0,,,,,,1.2.1,250,
+,,Verify communication between application components are authenticated,,Yes,0,,,,,,1.2.2,306,
+,,Verify implementation of centralised security controls,,Yes,0,,,,,,1.2.3,306,
+,,Verify availability of a secure coding checklist or policy for developers,,Yes,0,,,,,,1.2.4,306,
+,Access Control Architecture Requirements,"Verify trusted enforcement points such as access control gateways, servers etc enforce access controls",,Yes,0,,,,,,1.4.1,602,
+,,Verify chosen control solution is flexible to meet application requirements,,Yes,0,,,,,,1.4.2,284,
+,,"Verify enforcement of principle of least privilege in functions, data files etc",,Yes,0,,,,,,1.4.3,272,
+,,,,Yes,0,,,,,,1.4.4,284,
+,,,,Yes,0,,,,,,1.4.5,275,
+,Input and Output Architectural Requirements,,,Yes,0,,,,,,1.5.1,,
+,,,,Yes,0,,,,,,1.5.2,,
+,,,,Yes,0,,,,,,1.5.3,,
+,,,,Yes,0,,,,,,1.5.4,,
+,Cryptographic Architectural Requirements,,,Yes,0,,,,,,1.6.1,,
+,,,,Yes,0,,,,,,1.6.2,,
+,,,,Yes,0,,,,,,1.6.3,,
+,,,,Yes,0,,,,,,1.6.4,,
+,"Errors, Logging and Auditing Architectural Requirements",,,Yes,0,,,,,,1.7.1,,
+,,,,Yes,0,,,,,,1.7.2,,
+,Data Protection and Privacy Architectural Requirements,,,Yes,0,,,,,,1.8.1,,
+,,,,Yes,0,,,,,,1.8.2,,
+,Communications Architectural Requirements,,,Yes,0,,,,,,1.9.1,,
+,,,,Yes,0,,,,,,1.9.2,,
+, Malicious Software Architectural Requirements,,,Yes,0,,,,,,1.10.1,,
+,Business Logic Architectural Requirements,,,Yes,0,,,,,,1.11.1,,
+,,,,Yes,0,,,,,,1.11.2,,
+,,,,Yes,0,,,,,,1.11.3,,
+,Secure File Upload Architectural Requirements,,,Yes,0,,,,,,1.12.1,,
+,,,,Yes,0,,,,,,1.12.2,,
+,Configuration Architectural Requirements,,,Yes,0,,,,,,1.14.1,,
+,,,,Yes,0,,,,,,1.14.2,,
+,,,,Yes,0,,,,,,1.14.3,,
+,,,,Yes,0,,,,,,1.14.4,,
+,,,,Yes,0,,,,,,1.14.5,,
+,,,,Yes,0,,,,,,1.14.6,,
+ Authentication Verification Requirements (V2),Password Security Checks,Passwords should be 8 chars minimum (OWASP says 12 but we ignore that in favour of NCSC),No,No,2,,,,,,2.1.1,521,5.1.1.2
+,,Passwords 64 chars or longer should be accepted,,No,2,,,,,,2.1.2,521,5.1.1.2
+,,Passwords should be able to contain spaces and not be truncated,,No,2,,,,,,2.1.3,521,5.1.1.2
+,,Passwords should be able to contain unicode characters,,No,2,,,,,,2.1.4,521,5.1.1.2
+,,Users should be able to change their passwords,,No,2,,,,,,2.1.5,620,5.1.1.2
+,,Password change functionality should require the old password,,No,2,,,,,,2.1.6,620,5.1.1.2
+,,Passwords should be checked against breached passwords  list,,No,2,,,,,,2.1.7,521,5.1.1.2
+,,A password strength meter should be supplied,,No,2,,,,,,2.1.8,521,5.1.1.2
+,,No password complexity rules should be enforced,,No,2,,,,,,2.1.9,521,5.1.1.2
+,,No periodic password rotation or history requirements should be enforced,,No,2,,,,,,2.1.10,263,5.1.1.2
+,,Pasting into password prompts should not be blocked,,No,2,,,,,,2.1.11,521,5.1.1.2
+,,Users should be able to view their masked password temporarily when entering it,,No,2,,,,,,2.1.12,521,5.1.1.2
+,Authenticators ,"Anti-automation controls against authentication attempts (rate limits, delays, lockouts, CAPTCHA)",No,No,2,,,,,,2.2.1,307,5.2.2 / 5.1.1.2 / 5.1.4.2 / 5.1.5.2
+,,Weak authenticators (SMS/email) should be limited to a secondary verification,,No,2,,,,,,2.2.2,304,5.2.10
+,,Users should be notified after credential/email changes or risky log ins (ideally push notifications),,No,2,,,,,,2.2.3,620,N/A
+,,"Anti-impersonation measures should be in place (e.g. MFA, yubikey, client-side TLS)",,No,2,,,,,,2.2.4,308,5.2.5
+,,When a credential service provider (CSP) and app verifying authentication are separate they should use mTLS,,No,2,,,,,,2.2.5,319,5.2.6
+,,Verify replay resistence through OTP devices/authentcators or lookup code,,No,2,,,,,,2.2.6,308,5.2.8
+,,Verify intent to authenticate through entry of an OTP token or button press on FIDO hardware,,No,2,,,,,,2.2.7,308,5.2.9
+,Authenticator Lifecycle,"Initial passwords/auth codes should be random, 6+ char long and expire",No,No,2,,,,,,2.3.1,330,5.1.1.2 / A.3
+,,U2F/FIDO MFA devices should be enrollable,,No,2,,,,,,2.3.2,308,6.1.3
+,,Authenticator renewal instructions should be sent with sufficient time to renew time-based authenticators,,No,2,,,,,,2.3.3,287,6.1.4
+,Credential Storage,"Passwords should be hashed, salted using an approved one way hashing algorithm (e.g. not MD5)",No,No,1,,,,,,2.4.1,916,5.1.1.2
+,,Salt should be at least 32 bits in length,,No,1,,,,,,2.4.2,916,5.1.1.2
+,,"If PBKDF2 is used, should be at least 100k iterations",,No,1,,,,,,2.4.3,916,5.1.1.2
+,,"If Bcrypt is used, work factor should be at least 10",,No,1,,,,,,2.4.4,916,5.1.1.2
+,,"Salt should be randomly generated securely (SP 800-131A), not shared with the user and stored separately",,No,1,,,,,,2.4.5,916,5.1.1.2
+,Credential Recovery,Activation or recovery secret should not be sent in clear text to the user,No,No,2,,,,,,2.5.1,640,5.1.1.2
+,,Password hints or secret questions should not be used,,No,2,,,,,,2.5.2,640,5.1.1.2
+,,Password recovery should not reveal the current password,,No,2,,,,,,2.5.3,640,5.1.1.2
+,,"Default or shared accounts should not be present (e.g. default Admin, root or sa accounts)",,No,2,,,,,,2.5.4,16,5.1.1.2 / A3
+,,User should be notified of authenticator factors changing,,No,2,,,,,,2.5.5,304,6.1.2.3
+,,"Forgotten password should use a secure recovery mechanism (e.g. OTP, mobile push etc)",,No,2,,,,,,2.5.6,640,5.1.1.2
+,,If OTP/MFA is lost the user identity should be verified,,No,2,,,,,,2.5.7,308,6.1.2.3
+,,Password reset tokens should not be predictable,,No,2,,,,,,-,,
+,,Password reset flows should have rate limiting,,No,2,,,,,,-,,
+,,Password reset host header poisoning,,No,2,,,,,,-,,
+,,Insecure password reset flow (e.g. parameter manipulation to another user ID),,No,2,,,,,,,,
+,,Password reset tokens should not be resuable,,No,2,,,,,,,,
+,Lookup Secret Verifier (e.g. recovery codes),Lookup codes should only be usable once,No,No,2,,,,,,2.6.1,308,5.1.2.2
+,,Lookup secrets should be random (112 bits entropy or salted with unique 32 bit salt + hashed),,No,1,,,,,,2.6.2,330,5.1.2.2
+,,"Lookup secrets should be safe against offline attacks, such as having predictable/guessable values",,No,1,,,,,,2.6.3,310,5.1.2.2
+,Out of Band Verifier (i.e. MFA),App/hardware MFA should be offered first over SMS,No,No,2,,,,,,2.7.1,287,5.1.3.2
+,,Codes should expire within 10 minutes ,,No,2,,,,,,2.7.2,287,5.1.3.2
+,,Codes should only be usable once,,No,2,,,,,,2.7.3,287,5.1.3.2
+,,Codes should only be sent over a secure channel,,No,2,,,,,,2.7.4,523,5.1.3.2
+,,Out of band verifer should only retain a hashed version of the code,,No,2,,,,,,2.7.5,256,5.1.3.2
+,,Initial authenticator code should be securely generated with at least 20 bits entropy (e.g. >= 6 digit codes),,No,2,,,,,,2.7.6,310,5.1.3.2
+,,SMS PUMPING CHECK,,,2,,,,,,,,
+,One Time Verifier (Time based MFA),Time based OTPs should have a defined lifetime before expiring,No,No,2,,,,,,2.8.1,613,5.1.4.2 / 5.1.5.2
+,,Symmetric keys used to verify OTPs should be stored in a key vault/hardware storage module,,No,1,,,,,,2.8.2,320,5.1.4.2 / 5.1.5.2
+,,Approved crypto algorithms should be used for generation/verification of OTPs,,No,2,,,,,,2.8.3,326,5.1.4.2 / 5.1.5.2
+,,Time based OTPs should only be usable once within the time period,,No,2,,,,,,2.8.4,287,5.1.4.2 / 5.1.5.2
+,,If a time based OTP is reused in the time window it should be logged and the user notified,,No,2,,,,,,2.8.5,287,5.1.5.2
+,,Physical OTP generators should be revocable if lost/stolen. This should apply to all sessions immediately.,,No,2,,,,,,2.8.6,613,5.2.1
+,,Biometric authenticators are limited to only be usable as a secondary factor,,No,2,,,,,,2.8.7,308,5.2.3
+,"Cryptographic Verifier (FIDO, smart cards)","Crypto keys should be stored on a TPM, vault or HSM",,No,1,,,,,,2.9.1,320,5.1.7.2
+,,Challenge nonce is at least 64 bits in length and unique,,No,1,,,,,,2.9.2,330,5.1.7.2
+,,Only approved crypto algorithms are used in generation/verification,,No,1,,,,,,2.9.3,327,5.1.7.2
+,Service Authentication,"Intra-service secrets should not rely on unchanging credentials (e.g. passwords, API keys)",,No,1,,,,,,2.10.1,287,5.1.1.1
+,,"If passwords are required for service authentication, default credentials should not be used (e.g. root/root)",,No,1,,,,,,2.10.2,255,5.1.1.1
+,,Passwords should be stored with protection against offline recovery attacks,,No,1,,,,,,2.10.3,522,5.1.1.1
+,,"Passwords,secrets, api keys should NOT  bestored within source code, instead in a key store or similar",,No,1,,,,,,2.10.4,798,
+Session Management (v3),Session Management,Session tokens within URL parameters (or error messages),No,No,2,,,,,,3.1.1,598,
+,Session Login,Login bypass,No,No,2,,,,,,-,,
+,Session Binding,Application doesn't generate new session token on authentication,No,No,2,,,,,,3.2.1,384,7.1
+,,Auth tokens with less than 64 bits of entropy,,No,2,,,,,,3.2.2,331,7.1
+,,Auth tokens not stored securely (e.g. not a cookie or session storage),,No,2,,,,,,3.2.3,539,7.1
+,,Auth tokens generated with poor cryptography,,No,2,,,,,,3.2.4,331,7.1
+,Session Logout,Session Expiration after logout,No,No,2,,,,,,3.3.1,613,7.1
+,,Application should force users to re-auth after an appropriate idle time,,No,2,,,,,,3.3.2,613,7.1
+,,Application terminates other sessions after password change,,No,2,,,,,,3.3.3,613,N/A
+,,Users have option to log out on other devices (session fixation),,No,2,,,,,,3.3.4,613,7.1
+,Cookies,Auth cookies should have the Secure attribute,No,No,2,,,,,,3.4.1,614,7.1.1
+,,Auth cookies should have the HTTPOnly attribute,,No,2,,,,,,3.4.2,1004,7.1.1
+,,Auth cookies have the SameSite attribute to prevent CSRF,,No,2,,,,,,3.4.3,16,7.1.1
+,,Auth cookies have the __Host prefix,,No,2,,,,,,3.4.4,16,7.1.1
+,,"If other apps are on the same domain, ensure the cookie path attribute uses a specific path",,No,2,,,,,,3.4.5,16,7.1.1
+,Token-based,Application should allow users to revoke oauth tokens,No,No,2,,,,,,3.5.1,290,7.1.2
+,,Application should use session tokens rather than static API keys/secrets,,No,2,,,,,,3.5.2,798,N/A
+,,Stateless session tokens should use signatures or encryption to protect against tampering or replay,,No,2,,,,,,3.5.3,345,N/A
+,JWT,"JWT issues (weak key, alg:None, sensitive information etc)",No,No,2,,,,,,-,,
+,Reauthentication from Federation,Relaying parties should specify maximum authentication time to Credential Service Providers + should reauth user if,,No,1,,,,,,3.6.1,613,7.2.1
+,,Credential Service Providers inform RPs of last auth event ,,No,1,,,,,,3.6.2,613,7.2.1
+,Defenses Against Session Management Exploits,App ensures a full valid login before allowing sensitive transactions/account modifications (e.g. pre-MFA changes),No,No,2,,,,,,3.7.1,778,N/A
+Access Control (v4),General Access Control,Ensure access controls are enforced server-side (horizontal and vertical),No,No,2,,,,,,4.1.1,602,
+,,User attributes used by access controls (e.g. your role) should not be able to be manipulated by end users,,No,2,,,,,,4.1.2,639,
+,,Principle of least privilege - users should only be able to access functionality they need to,,No,2,,,,,,4.1.3,285,
+,,Principle of deny by default - users should not be able to access services unless granted,,No,2,,,,,,4.1.4,276,
+,,Access control should fail securely when errors occur,,No,2,,,,,,4.1.5,285,
+,Account Enumeration,"Account Enumeration (password reset, login etc)",No,No,2,,,,,,-,,
+,Operation Level Access Control,IDOR,No,No,2,,,,,,4.2.1,639,
+,,Anti CSRF protection present,,No,2,,,,,,4.2.2,352,
+,Other Access Control,Multi-factor authentication present for admin interfaces,No,No,2,,,,,,4.3.1,419,
+,,"Directory listing should be disabled. .git, .svn, thumbs.db should also not be exposed",,No,2,,,,,,4.3.2,548,
+,,Verify the app has additional authorization/segregation for higher value systems to enforce anti-fraud controls,,No,2,,,,,,4.3.3,732,
+"Validation, sanitisation and encoding (v5)",Input Validation,HTTP Parameter Pollution,No,No,2,,,,,,5.1.1,235,
+,,Mass Assignment,,No,2,,,,,,5.1.2,915,
+,,Input Validation (whitelisting),,No,2,,,,,,5.1.3,20,
+,,Input Validation (input is strongly typed. e.g. telephone numbers),,No,2,,,,,,5.1.4,20,
+,,Open Redirect,,No,2,,,,,,5.1.5,601,
+,Sanitisation/Sandboxing,Check WYSIWG editors are sanitised,No,No,2,,,,,,5.2.1,116,
+,,Ensure data is sanitised (acceptable characters and length),,No,2,,,,,,5.2.2,138,
+,,SMTP/IMAP Injection,,No,2,,,,,,5.2.3,147,
+,,Usage of eval() or similar dynamic code execution functions,,No,2,,,,,,5.2.4,95,
+,,Template Injection (Server-Side),,No,2,,,,,,5.2.5,94,
+,,Template Injection (Client-Side),,No,2,,,,,,5.2.5,94,
+,,SSRF,,No,2,,,,,,5.2.6,918,
+,,XSS through SVG,,No,2,,,,,,5.2.7,159,
+,,Sanitisation/sandboxing of template expression content (e.g. Markdown),,No,2,,,,,,5.2.8,94,
+,Output Encoding/Injection Prevention,Should have relevant output encoding for the context (e.g. HTML escaping for user-facing web apps),No,No,2,,,,,,5.3.1,116,
+,,Unicode issues,,No,2,,,,,,5.3.2,176,
+,,"Stored, reflected and DOM XSS",,No,2,,,,,,5.3.3,79,
+,,"SQL, HRM and NoSQL injection (ORM should be used)",,No,2,,,,,,5.3.4,89,
+,,"SQL, HRM and NoSQL injection (Escaping if ORM not available)",,No,2,,,,,,5.3.5,89,
+,,"JavaScript/JSON Injection (eval, remote JS includes, CSP bypasses and expression evaluation)",,No,2,,,,,,5.3.6,830,
+,,LDAP Injection,,No,2,,,,,,5.3.7,943,
+,,OS Command Injection,,No,2,,,,,,5.3.8,78,
+,,Local and Remote File Inclusion,,No,2,,,,,,5.3.9,829,
+,,XML and XPath Injection,,No,2,,,,,,5.3.10,643,
+,,Prototype pollution,,No,2,,,,,,-,,
+,Memory/String/Unmanaged Code,Memory safety issues (buffer/heap overflows),No,No,2,,,,,,5.4.1,120,
+,,Format string issues,,No,2,,,,,,5.4.2,134,
+,,Integer overflow issues,,No,2,,,,,,5.4.3,190,
+,Deserialisation Prevention,Deserialization issues (lack of integrity checks or encryption),No,No,2,,,,,,5.5.1,502,
+,,XML Entity Injection,,No,2,,,,,,5.5.2,611,
+,,"Deserialization issues (JSON,XML,YAML)",,No,2,,,,,,5.5.3,502,
+,,eval() used to parse JSON documents instead of JSON.parse(),,No,2,,,,,,5.5.4,95,
+Stored Cryptography (V6),Data Classification,Sensitive data should be encrypted at rest (e.g. PII),No,No,2,,,,,,6.1.1,311,
+,,Sensitive data should be encrypted at rest (e.g. Medical data),,No,2,,,,,,6.1.2,311,
+,,Sensitive data should be encrypted at rest (e.g. Financial data),,No,2,,,,,,6.1.3,311,
+,Algorithms (ADVANCED CRYPTO ISSUES),Padding Oracle Issues,No,No,2,,,,,,6.2.1,310,
+,,No rolling your own crypto (algorithms should be industry standard),,No,2,,,,,,6.2.2,327,
+,,"Cryptographic issues in IV, cipher and block mode configuration",,No,2,,,,,,6.2.3,326,
+,,Random number/encryption/hashing algo rounds/ciphers/modes can be swapped easily,,No,2,,,,,,6.2.4,326,
+,,"Insecure block/padding modes, small block sizes and weak hashing algos (SHA-1/MD5) in use",,No,2,,,,,,6.2.5,326,
+,,IVs being reused,,No,2,,,,,,6.2.6,326,
+,,"Ensure encrypted data is authenticated via signatures, ciphers or HMAC to prevent tampering",,No,2,,,,,,6.2.7,326,
+,,Crypto operations should be constant time,,No,2,,,,,,6.2.8,385,
+,Random Values,"Random values (e.g. UUIDs, random strings) should be generated using a secure method",No,No,2,,,,,,6.3.1,338,
+,,UUIDs should be created using GUIDv4 + secure PSRNG,,No,2,,,,,,6.3.2,338,
+,,Ensure random numbers have strong entropy even under heavy traffic,,No,2,,,,,,6.3.3,338,
+,Secret Management,Key vault should be used to store secrets (e.g. Vault),N/A,No,1,,,,,,6.4.1,798,
+,,Key material shouldn't be exposed to application directly but use a vault for crypto operations,,No,1,,,,,,6.4.2,320,
+Error Handling and Logging (V7),Log Content,"Application logs sensitive data (credentials, payment details)",N/A,No,1,,,,,,7.1.1,532,
+,,Application logs sensitive data (PII etc),,No,1,,,,,,7.1.2,532,
+,,"Application should log security events (e.g. auth failures, input validation failures)",,No,1,,,,,,7.1.3,778,
+,,Log events should include details for incident response,,No,1,,,,,,7.1.4,778,
+,Log Processing,Application should log all authentication decisions including relevant metadata,N/A,No,1,,,,,,7.2.1,778,
+,,Application should log all access control decisions including relevant metadata,,No,1,,,,,,7.2.2,285,
+,Log Protection,Log Injection (encoding),N/A,No,1,,,,,,7.3.1,117,
+,,Log Injection (viewing the logs should be escaped/safe),,No,1,,,,,,7.3.2,117,
+,,Log tampering,,No,1,,,,,,7.3.3,200,
+,,Logs have valid time zone (e.g. UTC if global),,No,1,,,,,,7.3.4,N/A,
+,Error Handling,"Errors should be generic during security sensitive events, with a unique identifier",No,No,2,,,,,,7.4.1,210,
+,,Exception handling for unexpected error conditions,,No,2,,,,,,7.4.2,544,
+,,Exception handling for unhandled exceptions,,No,2,,,,,,7.4.3,460,
+Data Protection Requirements (V8),General Data Protection,No sensitive data cached (server-side),No,No,2,,,,,,8.1.1,524,
+,,Cached data modification (on server) e.g. Cache Poisoning,,No,2,,,,,,8.1.2,524,
+,,Application should minimise number of parameters per request,,No,2,,,,,,8.1.3,233,
+,,Alerting for abnormal number of requests - Rate Limiting,,No,2,,,,,,8.1.4,770,
+,,Lack of backups,,No,1,,,,,,8.1.5,19,
+,,Security of data backups,,No,1,,,,,,8.1.6,19,
+,Client-side Data Protection,Sensitive data should not be cached by browser,No,No,2,,,,,,8.2.1,525,
+,,"Client-side storage should not contain sensitive data or PII (e.g. localstorage, cookies)",,No,2,,,,,,8.2.2,922,
+,,Client-side storage should be cleared after logout,,No,2,,,,,,8.2.3,922,
+,Sensitive Private Data,Ensure sensitive data is not sent in query parameters/URL,N/A,No,1,,,,,,8.3.1,319,
+,,Users should be able to request GDPR deletion/export,,No,1,,,,,,8.3.2,212,
+,,Users should accept data privacy terms and conditions before their data is used,,No,1,,,,,,8.3.3,285,
+,,Ensure sensitive data created/processed by the application has been identified,,No,1,,,,,,8.3.4,200,
+,,Ensure accessing sensitve data is audited and logged.,,No,1,,,,,,8.3.5,532,
+,,Sensitive data in memory is overwritten as soon as it is no longer required,,No,1,,,,,,8.3.6,226,
+,,Ensure sensitive/private information is encrypted,,No,1,,,,,,8.3.7,327,
+,,Ensure sensitive/private information is subject to data retention classification,,No,1,,,,,,8.3.8,285,
+Communication (V9),Communication Security,Check TLS is in use,No,No,2,,,,,,9.1.1,319,
+,,Check TLS only uses strong ciphers and hashing algorithms,,No,2,,,,,,9.1.2,326,
+,,"Check older versions of TLS are disabled (TLS 1.0/1.1, SSL3 etc)",,No,2,,,,,,9.1.3,326,
+,Request Smuggling,Request Smuggling,No,No,2,,,,,,-,,
+,HTTP Misrouting,HTTP Misrouting,No,No,2,,,,,,-,,
+,Server Communication Security,Connections to/from the app should use TLS certificates (e.g. to external services),,No,1,,,,,,9.2.1,295,
+,,All inbound/outbound connection should use TLS (e.g. to internal database services),,No,1,,,,,,9.2.2,319,
+,,All encrypted connections to external services involving sensitive info are authenticated,,No,1,,,,,,9.2.3,287,
+,,Certificate revocation (OSCP) should be enabled,,No,1,,,,,,9.2.4,299,
+,,Backend TLS failures should be logged,,No,1,,,,,,9.2.5,544,
+Malicious Code Verification (V10),Code Integrity,Code analysis tool should be used  (e.g. SAST/DAST),,No,1,,,,,,10.1.1,749,
+,Malicious Code Search,Application/libraries should not have telemetry without user permission,,No,1,,,,,,10.2.1,359,
+,,Application requires unnecessary permissions (Permissions-Policy),,No,1,,,,,,10.2.2,272,
+,,"Back-doors within software (e.g. hard coded credentials in third party libraries, default debugging code)",,No,1,,,,,,10.2.3,507,
+,,"""Time bombs"" within software",,No,1,,,,,,10.2.4,511,
+,,Other malicious code e.g. logic bombs within software,,No,1,,,,,,10.2.5,511,
+,,"""Easter eggs"" within software",,No,1,,,,,,10.2.6,507,
+,Deployed Application Integrity,Auto update feature should ensure updates are digitally signed + sent over secure channel,No,No,2,,,,,,10.3.1,16,
+,,"Integrity protections in place (code signing, subresource integrity)",,No,2,,,,,,10.3.2,353,
+,,Sub-domain takeovers,,No,2,,,,,,10.3.3,350,
+Business Logic (v11),Business Logic Security,Ensure users can only conduct business logic steps in sequential order,No,No,2,,,,,,11.1.1,841,
+,,Ensure users can only conduct business logic steps in a realistic human time,,No,2,,,,,,11.1.2,779,
+,,Ensure application has appropriate limits for business actions (e.g. can't order 100 of the same item),,No,2,,,,,,11.1.3,770,
+,,Ensure the application has anti-automation controls (e.g. rate limiting),,No,2,,,,,,11.1.4,770,
+,,Ensure the application has business logic limits/validation,,No,2,,,,,,11.1.5,841,
+,,"""Time of check to time of use"" (TOCTOU) issues or other race conditions for sensitive operations.",,No,2,,,,,,11.1.6,367,
+,,Ensure application monitors for unusual events from a business logic perspective (e.g. events out of order),,No,2,,,,,,11.1.7,754,
+,,Ensure the application has alerting for automated or unusual attacks,,No,2,,,,,,11.1.8,390,
+File Handling (v12),File Upload,File upload sizes are not restricted,No,No,2,,,,,,12.1.1,400,
+,,[CAREFUL RISK OF DOS] Zip bomb prevention,,No,2,,,,,,12.1.2,409,
+,,Limits on how many files a user can upload (e.g. rate limit),,No,2,,,,,,12.1.3,770,
+,File Integrity,Lack of validation on file types,No,No,2,,,,,,12.2.1,434,
+,File Execution,Path traversal through user input (e.g. file names),No,No,2,,,,,,12.3.1,22,
+,,Local file inclusion through user input,,No,2,,,,,,12.3.2,73,
+,,Remote file inclusion through user input,,No,2,,,,,,12.3.3,98,
+,,Reflective File Download,,No,2,,,,,,12.3.4,641,
+,,OS-level Command Injection Through File Upload (e.g. in file name),,No,2,,,,,,12.3.5,78,
+,,"Remote Code Execution Through FIle Upload (e.g. uploading JSP, ASP etc)",,No,2,,,,,,12.3.6,829,
+,File Storage,File not stored outside the web root ,No,No,2,,,,,,12.4.1,922,
+,,Lack of AV scanning on file uploads,,No,2,,,,,,12.4.2,509,
+,File Download,"Server serves/accepts arbitrary file types (e.g. .bak files, .zip)",No,No,2,,,,,,12.5.1,552,
+,,XSS through file upload (HTML/JS rendering when browsing to it),,No,2,,,,,,12.5.2,434,
+,SSRF,SSRF through file upload/download,No,No,2,,,,,,12.6.1,918,
+API and web service (V13),Generic Web Service Security (13.1),Verify app components all use same encoding/parsing measures to avoid parsing attacks,No,No,2,,,,,,13.1.1,116,
+,,"Verify API URLS don't expose sensitive auth e.g. API keys, session tokens",,,2,,,,,,13.1.3,598,
+,,"Verify authorization decisions are made at both URI, programmatic/router and resource level ",,,2,,,,,,13.1.4,285,
+,,Verify requests with unexpected/missing content types are rejected,,,2,,,,,,13.1.5,434,
+,REST (13.2),Ensure acceptable HTTP verbs are permitted e.g. normal users shouldn't be able to DELETE arbitrary things,No,No,2,,,,,,13.2.1,650,
+,,Verify JSON schema validation occurs before accepting input,,,2,,,,,,13.2.2,20,
+,,"Verify X-CSRF protection is in place (e.g. through origin header, csrf nonce)",,,2,,,,,,13.2.3,352,
+,,Verify Content-Type of request is validated,,,2,,,,,,13.3.5,436,
+,,Verify message headers/payload are validated in transit e.g. TLS or per-request signatures,,,2,,,,,,13.3.6,345,
+,SOAP (13.3),Verify XSD schema validation is taking place to ensure document formatting,N/A,No,1,,,,,,13.3.1,20,
+,,Verify message payload is signed with WS-Security,,,1,,,,,,13.3.2,345,
+,GraphQL (13.4),Query allow list/depth limiting in place to prevent DoS through nested queries,N/A,No,1,,,,,,13.4.1,770,
+,,Ensure authorization logic should be implemented at business logic layer instead of GraphQL layer,,,1,,,,,,13.4.2,285,
+Configuration Vertification (V14),Build,"Application build and deployment occur in a secure, repeatable way (e.g. CI pipeline)",,No,1,,,,,,14.1.1,,
+,,"Compiler protections in place for buffer overflow, DEP, etc.",,No,1,,,,,,14.1.2,120,
+,,Server hardening,,No,1,,,,,,14.1.3,16,
+,,Application and all dependencies can be automatically redeployed in a reasonable time,,No,1,,,,,,14.1.4,,
+,,Administrators can verify the integrity of security configuration to detect tampering,,No,1,,,,,,14.1.5,,
+,Dependency,"Out of date components (e.g. JS Libraries, web-server)",No,No,2,,,,,,14.2.1,1026,
+,,Exposed documentation/sample code (unless intentional),,No,2,,,,,,14.2.2,1002,
+,,Lack of SubResource Integrity,,No,2,,,,,,14.2.3,714,
+,,External assets are sourced from reliable source (CloudFlare etc),,No,2,,,,,,14.2.3,829,
+,,Lack of Software Inventory ,,No,1,,,,,,14.2.5,N/A,
+,,Lack of third-party library sandboxing,,No,1,,,,,,14.2.6,265,
+,Unintended Security Disclosure,Verbose Error Messages,No,No,2,,,,,,14.3.1,209,
+,,Debug/developer Modes Not Disabled,,No,2,,,,,,14.3.2,497,
+,,Version Information Disclosure (e.g. x-powered-by),,No,2,,,,,,14.3.3,200,
+,HTTP Security Headers,Lack of HTTP Strict Transport Security,No,No,2,,,,,,14.4.5,523,
+,,Lack of Referrer Policy,,No,2,,,,,,14.4.6,116,
+,,Lack X-Frame-Options AND CSP: frame-ancestors,,No,2,,,,,,14.4.7,346,
+,,Lack of Content Security Policy,,No,2,,,,,,14.4.3,1021,
+,,Content Security Policy Weaknesses,,No,2,,,,,,14.4.3,1021,
+,,Lack of Content Type Header with safe charset (e.g. UTF8),,No,2,,,,,,14.4.1,173,
+,,API responses without Content-Disposition: attachment,,No,2,,,,,,14.4.2,116,
+,,Lack of Permissions Policy,,No,2,,,,,,10.2.2,272,
+,,Lack of X-Content-Type-Options: nosniff,,No,2,,,,,,14.4.4,116,
+,HTTP Request Header Requirements,Only valid HTTP methods should be accepted (e.g. no TRACE) and should log/alert on invalid HTTP requests,No,No,2,,,,,,14.5.1,749,
+,,Origin header should NOT be used for authentication/access control decisions,,No,2,,,,,,14.5.2,346,
+,,"Cross-origin resource sharing should have a whitelist of trusted domains, not null",,No,2,,,,,,14.5.3,346,
+,,HTTP headers added by trusted proxies or similar should be authenticated by the application.,,No,2,,,,,,14.5.4,306,
