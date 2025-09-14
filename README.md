@@ -48,6 +48,9 @@ All changes are saved to your browser’s localStorage, with CSV/JSON import/exp
 
 ## 📑 Data Model
 
+⚠️ **Important:** The schema defined here is the source of truth.  
+Any code changes that add/remove/rename fields **must be reflected in this README**.
+
 The checklist supports two equivalent formats:
 
 ### Nested JSON (preferred)
@@ -137,5 +140,23 @@ Authentication,Password Policy,Passwords must be at least 12 chars,FALSE,,,,
 * [ ] Related items by tag in Details panel
 * [ ] Optional Markdown/Report export
 * [ ] Performance optimization for very large checklists (virtual scrolling)
+
+---
+
+## 📝 Changelog
+
+### vNext (Current Redesign)
+
+* **Added `priority` field (0–3) for items** with color coding and filter controls
+* **Added `hidden` field** for items and subtasks; global *Show hidden* toggle
+* **Added `notes` field** for subcategories
+* **Extended CSV/JSON schema** with new columns: `Priority`, `Hidden`, `Subtask Hidden`, `Subcategory Notes`
+* **UI enhancements:**
+
+  * Collapsible Notes panels at subcategory level
+  * Priority filter checkboxes
+  * Visual styling for priority levels and hidden items
+* **Bugfix:** Open/Done filter logic completed
+* **Security:** All new fields treated as plain text; no change to safe rendering model
 
 ---
