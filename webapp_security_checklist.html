@@ -488,7 +488,7 @@ function render() {
   const grid = $("#grid");
   grid.innerHTML = "";  // clear current view
   let totalCount = 0, doneCount = 0, categoryCount = 0;
-  data.forEach(cat => {
+  data.forEach((cat, catIdx) => {
     let catTotal = 0, catDone = 0;
     const catKey = cat.category || "(no category)";
     const card = createElem("div", { className: "card" });
@@ -515,7 +515,7 @@ function render() {
     });
     const contentWrapper = createElem("div", { className: "card-content" });
     // Subcategories
-    cat.subcats.forEach(sc => {
+    cat.subcats.forEach((sc, scIdx) => {
       const scKey = `${catKey}::${sc.name || "(General)"}`;
       const secDiv = createElem("div", { className: "subcat" });
       if (collapsedState[scKey]) secDiv.classList.add("collapsed");
@@ -536,7 +536,7 @@ function render() {
       secDiv.append(subcatHeader);
       // We'll append notes and items after filtering
       let anyItemShown = false;
-      sc.items.forEach(it => {
+      sc.items.forEach((it, itIdx) => {
         // Filter conditions:
         if (filterText) {
           // Build a haystack of searchable text: category + subcat + item title + tags + description + tools + links
@@ -553,6 +553,8 @@ function render() {
         // If we reach here, item should be shown
         anyItemShown = true;
         const itemDiv = createElem("div", { className: "item" });
+        const itemId = `item-${catIdx}-${scIdx}-${itIdx}`;
+        itemDiv.id = itemId;
         // Add priority and hidden CSS classes
         itemDiv.classList.add(`priority-${it.priority !== undefined ? it.priority : 2}`);
         if (it.hidden) itemDiv.classList.add("hidden-item");
@@ -658,6 +660,37 @@ function render() {
           });
           detailsEl.append(textarea);
         });
+        // Related items based on shared tags
+        if (it.tags && it.tags.length) {
+          const tagSet = new Set(it.tags);
+          const related = new Map();
+          data.forEach((c2, cIdx) => {
+            c2.subcats?.forEach((sc2, sIdx) => {
+              sc2.items?.forEach((other, oIdx) => {
+                if (cIdx === catIdx && sIdx === scIdx && oIdx === itIdx) return;
+                if (other.tags && other.tags.some(t => tagSet.has(t))) {
+                  const key = other.title || `(no title)`;
+                  if (!related.has(key)) {
+                    related.set(key, `item-${cIdx}-${sIdx}-${oIdx}`);
+                  }
+                }
+              });
+            });
+          });
+          if (related.size > 0) {
+            const relHeading = createElem("div", { className: "item-meta" }, "Related items:");
+            const relList = createElem("ul", { className: "related-list" });
+            related.forEach((rid, title) => {
+              const li = createElem("li", { className: "related-item" }, title);
+              li.addEventListener("click", () => {
+                const target = document.getElementById(rid);
+                if (target) target.scrollIntoView({ behavior: "smooth" });
+              });
+              relList.append(li);
+            });
+            detailsEl.append(relHeading, relList);
+          }
+        }
         itemDiv.append(detailsEl);
         secDiv.append(itemDiv);
         // Update counters
