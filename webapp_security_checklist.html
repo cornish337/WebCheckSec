@@ -239,6 +239,19 @@ function saveData() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 }
 
+function collapseAll() {
+  collapsedState = {};
+  data.forEach(cat => {
+    const catKey = cat.category || "(no category)";
+    collapsedState[catKey] = true;
+    cat.subcats?.forEach(sc => {
+      const scKey = `${catKey}::${sc.name || "(General)"}`;
+      collapsedState[scKey] = true;
+    });
+  });
+  localStorage.setItem(COLLAPSE_KEY, JSON.stringify(collapsedState));
+}
+
 /*** State Variables ***/
 let data = loadData();
 // Ensure new fields exist with defaults for all items/subtasks:
@@ -415,7 +428,6 @@ function mergePrefillRows(rows) {
     }
   });
   saveData();
-  render();
 }
 
 /*** Export Functions ***/
@@ -794,16 +806,21 @@ $("#fileInput").addEventListener("change", event => {
             // Form 3: flat array of row objects
             data = loadData(); // start from current data
             mergePrefillRows(obj);
-            return; // mergePrefillRows calls render
+            collapseAll();
+            render();
+            return;
           }
-          saveData();
-          render();
+            saveData();
+            collapseAll();
+            render();
         } else {
           alert("Unrecognized JSON format. Please provide an array of objects.");
         }
       } else if (name.endsWith(".csv")) {
         const rows = csvToObjects(content);
         mergePrefillRows(rows);
+        collapseAll();
+        render();
       } else {
         alert("Unsupported file type. Please import a .csv or .json file.");
       }
