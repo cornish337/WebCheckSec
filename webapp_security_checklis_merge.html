@@ -1,0 +1,1719 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Web App Security Checklist – Redesigned</title>
+<style>
+:root {
+  --bg: #0b0f14;
+  --fg: #e8f0ff;
+  --muted: #9fb0c3;
+  --card: #121822;
+  --border: #1f2a37;
+  --accent: #5fb3ff;
+  --ok: #22c55e;   /* green (used for low priority perhaps) */
+  --warn: #f59e0b; /* amber */
+  --err: #ef4444;  /* red */
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: Inter, system-ui, Segoe UI, Roboto, Arial, sans-serif;
+  margin: 0;
+}
+header { 
+  padding: 16px 18px; 
+  border-bottom: 1px solid var(--border); 
+  display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+}
+h1 { font-size: 1.25rem; margin: 0; }
+.pill {
+  background: #0f1722; border: 1px solid var(--border);
+  padding: 6px 10px; border-radius: 999px;
+  color: var(--muted); font-size: 0.9rem;
+}
+main { max-width: 1200px; margin: 0 auto; padding: 18px; }
+.toolbar { 
+  display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+  margin-bottom: 14px;
+}
+.toolbar input, .toolbar select, .toolbar button, label.button {
+  background: #0e1622; color: var(--fg);
+  border: 1px solid var(--border); border-radius: 10px;
+  padding: 8px 12px; cursor: pointer;
+  font: inherit;
+}
+.toolbar .small { font-size: 0.85rem; color: var(--muted); }
+.grid { 
+  display: grid; gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+}
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 14px; padding: 12px;
+  }
+  .card.cat-priority-3 { border-left: 4px solid var(--err); }
+  .card.cat-priority-2 { border-left: 4px solid var(--warn); }
+  .card.cat-priority-1 { border-left: 4px solid var(--ok); }
+  .card.cat-priority-0 { border-left: 4px solid #6b7280; }
+  .card .top {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 10px; cursor: pointer;
+  }
+.card.collapsed .card-content { display: none; }
+.subcat.collapsed .item, .subcat.collapsed .subcat-details { display: none; }
+.card .title { font-weight: 700; font-size: 1.05rem; }
+.card .count { color: var(--muted); font-size: 0.85rem; }
+
+.progress-bar {
+  background-color: #2a3a4c;
+  border-radius: 4px;
+  height: 8px;
+  width: 100px;
+  margin: 0 10px;
+}
+
+.progress-bar-inner {
+  background-color: var(--accent);
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease-in-out;
+}
+
+.subcat { 
+  margin-top: 10px; padding-top: 6px;
+  border-top: 1px dashed var(--border);
+}
+.subcat h3 {
+  margin: 6px 0 8px; font-size: 0.95rem; color: #cfe4ff;
+  display: flex; align-items: center; gap: 6px;
+}
+.subcat h3 input[type="checkbox"] { transform: scale(1.1); margin-right: 4px; }
+.subcat-details summary {
+  cursor: pointer; color: var(--accent);
+  font-weight: 600; margin-top: 4px;
+}
+.item {
+  background: #0c1420; border: 1px solid var(--border);
+  border-radius: 10px; padding: 8px;
+  margin-bottom: 8px;
+  position: relative;
+}
+.item-head { display: flex; align-items: center; gap: 8px; }
+.item-head input[type="checkbox"] { transform: scale(1.15); }
+.item-title { flex: 1; }
+.item-meta {
+  color: var(--muted); font-size: 0.85rem;
+  margin-top: 4px;
+}
+.tags { 
+  display: flex; gap: 6px; flex-wrap: wrap;
+  margin: 4px 0 6px 0;
+}
+.tag {
+  font-size: 0.75rem; padding: 2px 8px;
+  border: 1px solid var(--border); border-radius: 999px;
+  background: #0b1a2a; color: #b8cff0;
+  cursor: pointer;
+}
+.subtasks {
+  margin-top: 6px; padding-left: 14px;
+  border-left: 2px solid #1e293b;
+}
+.subtask {
+  display: flex; align-items: center; gap: 6px;
+  margin: 4px 0;
+}
+.subtask input[type="checkbox"] { transform: scale(1.05); }
+.hidden-item { opacity: 0.6; }       /* Hidden items appear faded when shown */
+.hidden-subtask { opacity: 0.6; font-style: italic; }  /* Hidden subtask style */
+
+/* Styles for completed items */
+.item.done .item-title, .subtask.done {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+.item.done, .subtask.done {
+  opacity: 0.7;
+}
+
+.item.priority-3 { border-left: 4px solid var(--err); }
+.item.priority-2 { border-left: 4px solid var(--warn); }
+.item.priority-1 { border-left: 4px solid var(--ok); opacity: 0.85; } /* low: green-ish, slightly faded */
+.item.priority-0 { border-left: 4px solid #6b7280; } /* very low: gray */
+details summary {
+  cursor: pointer; color: var(--accent);
+  font-weight: 600; margin-top: 8px;
+}
+textarea, select {
+  width: 100%; 
+  background: #0b111a; color: var(--fg);
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: 6px 8px; margin-top: 4px;
+  font: inherit;
+}
+.item-meta select { 
+  background: #0b111a; color: var(--fg);
+  border: 1px solid var(--border); border-radius: 6px;
+  padding: 4px 6px; margin-left: 6px;
+}
+.item-meta input[type="checkbox"] {
+  transform: scale(1.0); margin-right: 4px;
+  accent-color: var(--accent);
+}
+footer {
+  color: var(--muted); text-align: center; padding: 12px;
+  font-size: 0.8rem;
+}
+  /* Diff modal */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.55);
+  display: none; align-items: center; justify-content: center; z-index: 9999;
+}
+.modal {
+  background: var(--card); color: var(--fg); border: 1px solid var(--border);
+  border-radius: 12px; width: 92vw; max-width: 1100px; max-height: 86vh;
+  overflow: auto; padding: 16px;
+}
+.modal h2 { margin-top: 0; }
+.diff-summary { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+.diff-chip {
+  background: #0f1722; border: 1px solid var(--border);
+  padding: 4px 8px; border-radius: 999px; color: var(--muted); font-size: 0.85rem;
+}
+.diff-item { border: 1px solid var(--border); border-radius: 10px; padding: 10px; margin: 8px 0; background: #0c1420; }
+.diff-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.diff-fields { margin-top: 8px; display: grid; grid-template-columns: 160px 1fr 1fr 210px; gap: 8px; align-items: start; }
+.diff-fields .hdr { color: var(--muted); font-size: 0.85rem; }
+.diff-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.modal-footer { display: flex; justify-content: space-between; gap: 10px; margin-top: 12px; }
+.kbd { border: 1px solid var(--border); padding: 1px 5px; border-radius: 6px; background:#0b1a2a; font-size: 0.8rem; }
+
+</style>
+</head>
+<body>
+<header>
+  <h1>Web App Security Checklist – Category/Subtask View</h1>
+  <span class="pill" id="overall">0/0 checks completed</span>
+  <span class="pill" id="catcount">0 categories</span>
+  <span class="pill">Local-only • saves in your browser</span>
+  <span id="status-message" class="pill" style="background-color: var(--accent); color: var(--bg); display: none;"></span>
+</header>
+<main>
+  <div class="toolbar">
+    <input id="search" type="text" placeholder="Search..." />
+    <select id="filter">
+      <option value="all">All</option>
+      <option value="open">Open</option>
+      <option value="done">Completed</option>
+    </select>
+    <!-- Priority filter checkboxes -->
+    <span class="small">Priority:</span>
+    <label class="small"><input type="checkbox" class="prioChk" value="3" checked /> High</label>
+    <label class="small"><input type="checkbox" class="prioChk" value="2" checked /> Med</label>
+    <label class="small"><input type="checkbox" class="prioChk" value="1" checked /> Low</label>
+    <label class="small"><input type="checkbox" class="prioChk" value="0" checked /> Very Low</label>
+    <label class="small"><input id="showHidden" type="checkbox" /> Show hidden</label>
+    <!-- Action buttons -->
+    <button id="save">Save (local)</button>
+    <button id="exportJSON">Export JSON</button>
+    <button id="exportCSV">Export CSV</button>
+    <button id="reset">Reset (from file)</button>
+    <label for="fileInput" class="button">Import Prefill (CSV/JSON)</label>
+    <input id="fileInput" type="file" accept=".csv,.json" style="display:none;" />
+  </div>
+  <div class="small" style="margin-bottom: 10px;">
+    <strong>Tip:</strong> You can import a <b>CSV</b> or <b>JSON</b> file to prefill data. When importing, you'll be prompted to either MERGE the new data with your current checklist, or REPLACE it entirely.
+    CSV header should include: 
+    <code>Category, Sub Category, Item, Done, Subtask, Subtask Done, Subtask Hidden, ASVS, Description, Tools, Links, Applicability, Sources, Tags, Priority, Hidden, Subcategory Notes</code>.
+  </div>
+  <div id="grid" class="grid"></div>
+  <p style="font-size:0.85rem; color: var(--muted);">
+    Each category card contains sub-categories, which contain items (with checkboxes). Items may have sub-tasks (nested checkboxes) and an expandable <em>Details</em> section (ASVS, description, etc.). Use the filters above to narrow the list by text, completion status, or priority. Hidden items are omitted by default (enable "Show hidden" to view them). Your changes auto-save locally; use Export to save your progress externally.
+  </p>
+</main>
+<footer>Offline checklist tool – no server required. Data stays in your browser (export to share).</footer>
+
+<script>
+/*** Data Initialization ***/
+const STORAGE_KEY = "webchecklist_v1.0";
+const COLLAPSE_KEY = "webchecklist_collapsed_v1.0";
+const rawData = [
+  { category: "Category A",
+    subcats: [
+      { name: "Subcat A1", notes: "",
+        items: [
+          { title: "Visible Item", done: false, hidden: false, priority: 3,
+            asvs: "", desc: "Example item (high priority).", tools: "", links: "", applic: "", sources: "",
+            tags: ["auth","session"], subtasks: []
+          }
+        ]
+      },
+      { name: "Subcat A2", notes: "This subcategory has a note.",
+        items: [
+          { title: "Hidden Item", done: false, hidden: true, priority: 1,
+            asvs: "", desc: "This is a low-priority item hidden by default.", tools: "", links: "", applic: "", sources: "",
+            tags: [], subtasks: []
+          }
+        ]
+      }
+    ]
+  },
+  { category: "Category B",
+    subcats: [
+      { name: "Subcat B1", notes: "",
+        items: [
+          { title: "Item with Subtasks", done: false, hidden: false, priority: 2,
+            asvs: "", desc: "An item with one hidden subtask.", tools: "", links: "", applic: "", sources: "",
+            tags: ["files"], subtasks: [
+              { text: "Visible subtask", done: false, hidden: false },
+              { text: "Hidden subtask", done: false, hidden: true }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+];
+/*** Patch B: Baseline & helpers ***/
+const BASELINE_KEY = "webchecklist_baseline_v1.0";
+
+function getBaseline() {
+  try { return JSON.parse(localStorage.getItem(BASELINE_KEY) || "null"); }
+  catch { return null; }
+}
+function setBaseline(arr) {
+  localStorage.setItem(BASELINE_KEY, JSON.stringify(arr));
+}
+
+function deepClone(obj){ return JSON.parse(JSON.stringify(obj)); }
+function norm(s){ return String(s ?? "").trim().toLowerCase(); }
+function keyCat(cat){ return norm(cat) || "(no category)"; }
+function keySub(sub){ return norm(sub) || "(general)"; }
+function itemKey(cat, sub, title){ return `${keyCat(cat)}||${keySub(sub)}||${norm(title)||"(no title)"}`; }
+function subcatKey(cat, sub){ return `${keyCat(cat)}||${keySub(sub)}`; }
+function stKey(cat, sub, title, st){ return `${itemKey(cat, sub, title)}||st||${norm(st)}`; }
+
+function asSet(arr){ return new Set((arr||[]).map(s => String(s).trim()).filter(Boolean)); }
+function setsEqual(a,b){ if(a.size!==b.size) return false; for(const v of a) if(!b.has(v)) return false; return true; }
+function unionSets(a,b){ const out=new Set(a); for(const v of b) out.add(v); return out; }
+
+let collapsedState = {};
+function loadData() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    const collapse = localStorage.getItem(COLLAPSE_KEY);
+    collapsedState = collapse ? JSON.parse(collapse) : {};
+    if (!collapse) localStorage.setItem(COLLAPSE_KEY, JSON.stringify(collapsedState));
+    const data = saved ? JSON.parse(saved) : rawData;
+    return Array.isArray(data) ? data : rawData;
+  } catch (e) {
+    console.warn("Failed to parse saved data, resetting.", e);
+    collapsedState = {};
+    return rawData;
+  }
+}
+function saveData() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+function collapseAll() {
+  collapsedState = {};
+  data.forEach(cat => {
+    const catKey = cat.category || "(no category)";
+    collapsedState[catKey] = true;
+    cat.subcats?.forEach(sc => {
+      const scKey = `${catKey}::${sc.name || "(General)"}`;
+      collapsedState[scKey] = true;
+    });
+  });
+  localStorage.setItem(COLLAPSE_KEY, JSON.stringify(collapsedState));
+}
+
+/*** State Variables ***/
+let data = loadData();
+// Ensure new fields exist with defaults for all items/subtasks:
+data.forEach(cat => {
+  cat.subcats?.forEach(sc => {
+    sc.notes = sc.notes || "";
+    sc.items?.forEach(it => {
+      if (it.hidden === undefined) it.hidden = false;
+      if (it.priority === undefined) it.priority = 2;
+      it.tags = Array.isArray(it.tags) ? it.tags : (it.tags ? String(it.tags).split(/[\\s,;]+/).filter(Boolean) : []);
+      it.subtasks?.forEach(st => {
+        if (st.hidden === undefined) st.hidden = false;
+      });
+    });
+  });
+});
+let tagFilter = "";               // current tag filter (one tag at a time)
+let showHidden = false;          // whether to show hidden items
+const prioFilterSet = new Set([0,1,2,3]);  // which priority levels are shown
+
+/*** Helper Functions ***/
+const $ = sel => document.querySelector(sel);
+function createElem(tag, props = {}, ...children) {
+  const el = document.createElement(tag);
+  Object.assign(el, props);
+  for (let child of children) {
+    if (typeof child === "string") {
+      el.append(document.createTextNode(child));
+    } else if (child) {
+      el.append(child);
+    }
+  }
+  return el;
+}
+
+/*** Patch C: Turn CSV/flat JSON/structured JSON into normalized structured data ***/
+
+// 1) If you haven't already, replace csvToObjects with the robust parser from my prior message.
+//    (Skip this if you already did.)  It prevents multi-line breakup in quoted fields. :contentReference[oaicite:3]{index=3}
+
+function rowsToStructured(rows) {
+  // Build structured: [{category, subcats:[{name, notes, items:[...]}]}]
+  const result = [];
+  const catMap = new Map(); // catKey -> catObj
+  const scMap = new Map();  // scKey  -> scObj
+
+  const getCat = (catName) => {
+    const ck = keyCat(catName);
+    let cat = catMap.get(ck);
+    if (!cat) {
+      cat = { category: catName || "(no category)", subcats: [] };
+      catMap.set(ck, cat); result.push(cat);
+    }
+    return cat;
+  };
+  const getSub = (cat, subName) => {
+    const sk = `${keyCat(cat.category)}||${keySub(subName)}`;
+    let sc = scMap.get(sk);
+    if (!sc) {
+      sc = { name: subName || "(General)", notes: "", items: [] };
+      scMap.set(sk, sc); cat.subcats.push(sc);
+    }
+    return sc;
+  };
+  const findOrAddItem = (sc, title) => {
+    const t = title || "(no title)";
+    let it = sc.items.find(i => norm(i.title) === norm(t));
+    if (!it) {
+      it = { title: t, done: false, hidden: false, priority: 2,
+             asvs: "", desc: "", tools: "", links: "", applic: "", sources: "",
+             tags: [], subtasks: [] };
+      sc.items.push(it);
+    }
+    return it;
+  };
+
+  for (const r of rows) {
+    const cat = getCat(r["Category"]);
+    const sc = getSub(cat, r["Sub Category"]);
+    // One row may be either an "item row" or a "subtask row" (or both).
+    const it = findOrAddItem(sc, r["Item"]);
+    // Aggregate main fields (append text, union tags)
+    const doneVal = String(r["Done"]||"").toLowerCase();
+    if (["true","1","yes"].includes(doneVal)) it.done = true;
+    if (["false","0","no"].includes(doneVal)) it.done = false;
+
+    const hidVal = String(r["Hidden"]||"").toLowerCase();
+    if (["true","1","yes"].includes(hidVal)) it.hidden = true;
+    if (["false","0","no"].includes(hidVal)) it.hidden = false;
+
+    if (r["Priority"] !== undefined && r["Priority"] !== "") {
+      const n = parseInt(r["Priority"]);
+      if (!Number.isNaN(n)) it.priority = Math.max(0, Math.min(3, n));
+    }
+    // Append text fields if present (dedupe simple repeats)
+    for (const [col, fld] of [
+      ["ASVS","asvs"],["Description","desc"],["Tools","tools"],
+      ["Links","links"],["Applicability","applic"],["Sources","sources"]
+    ]) {
+      if (r[col]) {
+        const v = String(r[col]);
+        if (!it[fld]) it[fld] = v;
+        else if (!it[fld].includes(v)) it[fld] += `\n\n${v}`;
+      }
+    }
+    // Tags (multi-word preserved; you changed splitter already—great)
+    if (r["Tags"]) {
+      const incoming = String(r["Tags"]).split(/[;,]+/).map(t => t.trim()).filter(Boolean);
+      it.tags = Array.from(unionSets(asSet(it.tags), asSet(incoming)));
+    }
+    // Subtask (optional)
+    const stText = (r["Subtask"]||"").trim();
+    if (stText) {
+      const stDone = ["true","1","yes"].includes(String(r["Subtask Done"]||"").toLowerCase());
+      const stHidden = ["true","1","yes"].includes(String(r["Subtask Hidden"]||"").toLowerCase());
+      const exists = it.subtasks.find(s => s.text === stText);
+      if (!exists) it.subtasks.push({ text: stText, done: stDone, hidden: stHidden });
+      else { exists.done = stDone; exists.hidden = stHidden; }
+    }
+    // Subcategory notes (first non-empty wins)
+    const note = (r["Subcategory Notes"]||"").trim();
+    if (note && !sc.notes) sc.notes = note;
+  }
+  return result;
+}
+
+function normalizeStructuredJSON(arr) {
+  // Accepts your structured format; ensures defaults to match schema.json. :contentReference[oaicite:4]{index=4}
+  const out = deepClone(arr);
+  out.forEach(cat => {
+    cat.category = cat.category || "(no category)";
+    cat.subcats = Array.isArray(cat.subcats) ? cat.subcats : [];
+    cat.subcats.forEach(sc => {
+      sc.name = sc.name || "(General)";
+      sc.notes = sc.notes || "";
+      sc.items = Array.isArray(sc.items) ? sc.items : [];
+      sc.items.forEach(it => {
+        if (it.hidden === undefined) it.hidden = false;
+        if (it.done === undefined) it.done = false;
+        if (it.priority === undefined) it.priority = 2;
+        it.tags = Array.isArray(it.tags) ? it.tags : (it.tags ? [String(it.tags)] : []);
+        it.asvs = it.asvs || "";
+        it.desc = it.desc || "";
+        it.tools = it.tools || "";
+        it.links = it.links || "";
+        it.applic = it.applic || "";
+        it.sources = it.sources || "";
+        it.subtasks = Array.isArray(it.subtasks) ? it.subtasks : [];
+        it.subtasks.forEach(st => {
+          if (st.done === undefined) st.done = false;
+          if (st.hidden === undefined) st.hidden = false;
+        });
+      });
+    });
+  });
+  return out;
+}
+
+function flatJSONToRows(arr) {
+  // Flat list of rows with same headers as CSV importer
+  return arr.map(o => ({
+    "Category": o["Category"] || "",
+    "Sub Category": o["Sub Category"] || "(General)",
+    "Item": o["Item"] || "(no title)",
+    "Done": o["Done"] || "",
+    "Subtask": o["Subtask"] || "",
+    "Subtask Done": o["Subtask Done"] || "",
+    "Subtask Hidden": o["Subtask Hidden"] || "",
+    "ASVS": o["ASVS"] || "",
+    "Description": o["Description"] || "",
+    "Tools": o["Tools"] || "",
+    "Links": o["Links"] || "",
+    "Applicability": o["Applicability"] || "",
+    "Sources": o["Sources"] || "",
+    "Tags": o["Tags"] || "",
+    "Priority": o["Priority"] ?? "",
+    "Hidden": o["Hidden"] || "",
+    "Subcategory Notes": o["Subcategory Notes"] || ""
+  }));
+}
+
+// Parse any incoming content to structured data we can diff against `data`
+function parseIncomingToStructured(fileName, content) {
+  const lower = fileName.toLowerCase();
+  if (lower.endsWith(".csv")) {
+    const rows = csvToObjects(content); // your function name; ensure robust version is in place. :contentReference[oaicite:5]{index=5}
+    return rowsToStructured(rows);
+  }
+  // JSON
+  const obj = JSON.parse(content);
+  if (!Array.isArray(obj)) throw new Error("Unsupported JSON format (expecting array).");
+  const looksStructured = obj.length > 0 && (("subcats" in obj[0]) || ("items" in obj[0]));
+  if (looksStructured) return normalizeStructuredJSON(obj);
+  return rowsToStructured(flatJSONToRows(obj));
+}
+
+/*** Patch D: Diff engine ***/
+function indexStructured(arr) {
+  const items = new Map();   // itemKey -> {cat, sub, it}
+  const subtasks = new Map();// stKey   -> {cat, sub, title, st}
+  const notes = new Map();   // subcatKey -> note
+  (arr||[]).forEach(cat => {
+    (cat.subcats||[]).forEach(sc => {
+      notes.set(subcatKey(cat.category, sc.name), sc.notes || "");
+      (sc.items||[]).forEach(it => {
+        items.set(itemKey(cat.category, sc.name, it.title), { cat, sub: sc, it });
+        (it.subtasks||[]).forEach(st => {
+          subtasks.set(stKey(cat.category, sc.name, it.title, st.text), { cat, sub: sc, title: it.title, st });
+        });
+      });
+    });
+  });
+  return { items, subtasks, notes };
+}
+
+function diffStructured(current, incoming, {considerDeletions=false} = {}) {
+  const A = indexStructured(current);
+  const B = indexStructured(incoming);
+
+  const addedItems = [];
+  const removedItems = [];
+  const changedItems = [];
+  const addedSubtasks = [];
+  const removedSubtasks = [];
+  const changedSubtasks = [];
+  const changedNotes = [];
+
+  // Items added/changed
+  for (const [k, b] of B.items) {
+    if (!A.items.has(k)) {
+      addedItems.push({ key: k, cat: b.cat.category, sub: b.sub.name, incoming: b.it });
+    } else {
+      const a = A.items.get(k).it;
+      const fields = {};
+      // compare scalars
+      for (const fld of ["done","hidden","priority","asvs","desc","tools","links","applic","sources"]) {
+        const av = a[fld] ?? (typeof a[fld] === "number" ? a[fld] : "");
+        const bv = b.it[fld] ?? (typeof b.it[fld] === "number" ? b.it[fld] : "");
+        const diff = (fld === "priority" ? (Number(av) !== Number(bv)) : (String(av) !== String(bv)));
+        if (diff) fields[fld] = { from: a[fld], to: b.it[fld] };
+      }
+      // tags
+      const at = asSet(a.tags||[]);
+      const bt = asSet(b.it.tags||[]);
+      if (!setsEqual(at, bt)) {
+        fields["tags"] = { from: Array.from(at), to: Array.from(bt),
+          add: Array.from(bt).filter(v => !at.has(v)),
+          remove: Array.from(at).filter(v => !bt.has(v))
+        };
+      }
+      if (Object.keys(fields).length) {
+        changedItems.push({ key: k, cat: b.cat.category, sub: b.sub.name, title: b.it.title, fields });
+      }
+    }
+  }
+  // Items removed (only if we want to surface them)
+  if (considerDeletions) {
+    for (const [k, a] of A.items) {
+      if (!B.items.has(k)) {
+        removedItems.push({ key: k, cat: a.cat.category, sub: a.sub.name, current: a.it });
+      }
+    }
+  }
+
+  // Subtasks added/changed
+  for (const [k, b] of B.subtasks) {
+    if (!A.subtasks.has(k)) {
+      addedSubtasks.push({ key: k, cat: b.cat.category, sub: b.sub.name, title: b.title, incoming: b.st });
+    } else {
+      const a = A.subtasks.get(k).st;
+      const fields = {};
+      if (!!a.done !== !!b.st.done) fields.done = { from: a.done, to: b.st.done };
+      if (!!a.hidden !== !!b.st.hidden) fields.hidden = { from: a.hidden, to: b.st.hidden };
+      if (Object.keys(fields).length) {
+        changedSubtasks.push({ key: k, cat: b.cat.category, sub: b.sub.name, title: b.title, text: b.st.text, fields });
+      }
+    }
+  }
+  if (considerDeletions) {
+    for (const [k, a] of A.subtasks) {
+      if (!B.subtasks.has(k)) {
+        removedSubtasks.push({ key: k, cat: a.cat.category, sub: a.sub.name, title: a.title, current: a.st });
+      }
+    }
+  }
+
+  // Subcategory notes changed
+  const allSC = new Set([...A.notes.keys(), ...B.notes.keys()]);
+  for (const sk of allSC) {
+    const av = A.notes.get(sk) || "";
+    const bv = B.notes.get(sk) || "";
+    if (String(av) !== String(bv)) {
+      const [catK, subK] = sk.split("||");
+      changedNotes.push({ key: sk, cat: catK, sub: subK, from: av, to: bv });
+    }
+  }
+
+  return { addedItems, removedItems, changedItems, addedSubtasks, removedSubtasks, changedSubtasks, changedNotes };
+}
+
+/*** Patch E: Modal UI + plan application ***/
+
+// Build and show the diff modal. `onApply(plan)` is called when user clicks Apply.
+function openDiffModal(diff, incomingStructured, {title="Review & Merge", showDeletions=false} = {}, onApply) {
+  // Overlay & shell
+  let overlay = document.querySelector("#diff-modal-overlay");
+  if (!overlay) {
+    overlay = document.createElement("div"); overlay.id = "diff-modal-overlay";
+    overlay.className = "modal-overlay";
+    const modal = document.createElement("div"); modal.className = "modal"; modal.id = "diff-modal";
+    overlay.appendChild(modal); document.body.appendChild(overlay);
+    overlay.addEventListener("click", e => { if (e.target === overlay) overlay.style.display = "none"; });
+  }
+  const modal = overlay.querySelector("#diff-modal");
+  modal.innerHTML = "";
+  const h2 = document.createElement("h2"); h2.textContent = title;
+  modal.appendChild(h2);
+
+  // Summary pills
+  const sum = document.createElement("div"); sum.className = "diff-summary";
+  const pill = (txt) => { const s=document.createElement("span"); s.className="diff-chip"; s.textContent=txt; return s; }
+  sum.append(pill(`+${diff.addedItems.length} items`),
+             pill(`${diff.changedItems.length} items changed`),
+             pill(`+${diff.addedSubtasks.length} subtasks`),
+             pill(`${diff.changedSubtasks.length} subtasks changed`));
+  if (showDeletions) {
+    sum.append(pill(`−${diff.removedItems.length} items`),
+               pill(`−${diff.removedSubtasks.length} subtasks`));
+  }
+  if (diff.changedNotes.length) sum.append(pill(`${diff.changedNotes.length} subcategory notes changed`));
+  modal.appendChild(sum);
+
+  // Plan (stores selections)
+  const plan = {
+    addItems: new Set(diff.addedItems.map(d => d.key)),
+    removeItems: new Set(), // only if showDeletions
+    itemFieldAction: new Map(), // key -> { field: "current"|"incoming"|"append"|"unionTags" }
+    addSubtasks: new Set(diff.addedSubtasks.map(d => d.key)),
+    removeSubtasks: new Set(),
+    stFieldAction: new Map(),  // key -> { done: "incoming"|"current", hidden: "incoming"|"current" }
+    noteAction: new Map()      // subcatKey -> "current"|"incoming"|"append"
+  };
+
+  // Helper to field action default
+  function getItemFieldAction(k, f){ const m=plan.itemFieldAction.get(k)||{}; return m[f] || null; }
+  function setItemFieldAction(k, f, v){ const m=plan.itemFieldAction.get(k)||{}; m[f]=v; plan.itemFieldAction.set(k, m); }
+  function getStFieldAction(k, f){ const m=plan.stFieldAction.get(k)||{}; return m[f] || null; }
+  function setStFieldAction(k, f, v){ const m=plan.stFieldAction.get(k)||{}; m[f]=v; plan.stFieldAction.set(k, m); }
+
+  // Render block helpers
+  function fieldRow(label, from, to, ctrl) {
+    const wrap = document.createElement("div"); wrap.className="diff-fields";
+    const l = document.createElement("div"); l.textContent = label;
+    const c1 = document.createElement("div"); c1.innerText = String(from ?? "");
+    const c2 = document.createElement("div"); c2.innerText = String(to ?? "");
+    const c3 = document.createElement("div"); c3.appendChild(ctrl);
+    wrap.append(l, c1, c2, c3);
+    return wrap;
+  }
+  function radio(name, value, text, checked=false, title="") {
+    const lbl = document.createElement("label"); lbl.title=title;
+    const rb = document.createElement("input"); rb.type = "radio"; rb.name = name; rb.value=value; rb.checked=checked;
+    lbl.append(rb, ` ${text}`); return lbl;
+  }
+  function checkbox(text, checked=true){ const lbl=document.createElement("label");
+    const cb=document.createElement("input"); cb.type="checkbox"; cb.checked=checked; lbl.append(cb, ` ${text}`); return [lbl, cb]; }
+
+  // Items: ADDED
+  if (diff.addedItems.length) {
+    const h = document.createElement("h3"); h.textContent = "Items to add";
+    modal.appendChild(h);
+    diff.addedItems.forEach(d => {
+      const card = document.createElement("div"); card.className="diff-item";
+      const head = document.createElement("div"); head.className="diff-head";
+      head.innerHTML = `<div><strong>${d.incoming.title}</strong> — ${d.cat} ▸ ${d.sub}</div>`;
+      const [selLbl, selCb] = checkbox("Add this item", true);
+      selCb.addEventListener("change", () => {
+        if (selCb.checked) plan.addItems.add(d.key); else plan.addItems.delete(d.key);
+      });
+      head.append(selLbl); card.append(head);
+      modal.append(card);
+    });
+  }
+
+  // Items: CHANGED
+  if (diff.changedItems.length) {
+    const h = document.createElement("h3"); h.textContent = "Items with changes";
+    modal.appendChild(h);
+    diff.changedItems.forEach(d => {
+      const card = document.createElement("div"); card.className="diff-item";
+      const head = document.createElement("div"); head.className="diff-head";
+      head.innerHTML = `<div><strong>${d.title}</strong> — ${d.cat} ▸ ${d.sub}</div>`;
+      card.append(head);
+
+      // Columns header
+      const hdr = document.createElement("div"); hdr.className="diff-fields";
+      ["Field","Current","Incoming","Action"].forEach(t => {
+        const el=document.createElement("div"); el.className="hdr"; el.textContent=t; hdr.append(el);
+      });
+      card.append(hdr);
+
+      const fields = d.fields;
+
+      // Scalars: done, hidden, priority
+      for (const f of ["done","hidden","priority"]) if (f in fields) {
+        const name = `${d.key}::${f}`;
+        const wrapper = document.createElement("div");
+        const keep = radio(name,"current","Keep current", true);
+        const use  = radio(name,"incoming","Use incoming");
+        [keep, use].forEach(lbl => {
+          lbl.querySelector("input").addEventListener("change", e => setItemFieldAction(d.key, f, e.target.value));
+        });
+        setItemFieldAction(d.key, f, "current"); // default
+        card.append(fieldRow(f, fields[f].from, fields[f].to, (function(){const div=document.createElement("div");div.append(keep,use);return div;})()));
+      }
+
+      // Text blocks (append option): asvs, desc, tools, links, applic, sources
+      for (const f of ["asvs","desc","tools","links","applic","sources"]) if (f in fields) {
+        const name = `${d.key}::${f}`;
+        const keep = radio(name,"current","Keep current", false);
+        const use  = radio(name,"incoming","Use incoming", false);
+        const app  = radio(name,"append","Append incoming", true, "Append incoming text to the end of current");
+        [keep, use, app].forEach(lbl => {
+          lbl.querySelector("input").addEventListener("change", e => setItemFieldAction(d.key, f, e.target.value));
+        });
+        setItemFieldAction(d.key, f, "append"); // default for text
+        card.append(fieldRow(f, fields[f].from, fields[f].to, (function(){const div=document.createElement("div");div.append(keep,use,app);return div;})()));
+      }
+
+      // Tags (union option)
+      if ("tags" in fields) {
+        const name = `${d.key}::tags`;
+        const keep = radio(name,"current","Keep current", false);
+        const use  = radio(name,"incoming","Use incoming (replace)", false);
+        const uni  = radio(name,"union","Union (merge)", true);
+        [keep, use, uni].forEach(lbl => {
+          lbl.querySelector("input").addEventListener("change", e => setItemFieldAction(d.key, "tags", e.target.value));
+        });
+        setItemFieldAction(d.key, "tags", "union");
+        card.append(fieldRow("tags", fields.tags.from.join(", "), fields.tags.to.join(", "),
+          (function(){const div=document.createElement("div");div.append(keep,use,uni);return div;})()));
+      }
+
+      modal.appendChild(card);
+    });
+  }
+
+  // Subtasks: ADDED/CHANGED/REMOVED
+  if (diff.addedSubtasks.length || diff.changedSubtasks.length || (showDeletions && diff.removedSubtasks.length)) {
+    const h = document.createElement("h3"); h.textContent = "Subtasks";
+    modal.appendChild(h);
+
+    // Added
+    diff.addedSubtasks.forEach(d => {
+      const card = document.createElement("div"); card.className="diff-item";
+      const head = document.createElement("div"); head.className="diff-head";
+      head.innerHTML = `<div><strong>${d.title}</strong> — ${d.cat} ▸ ${d.sub} — <em>${d.incoming.text}</em></div>`;
+      const [selLbl, selCb] = checkbox("Add this subtask", true);
+      selCb.addEventListener("change", () => {
+        if (selCb.checked) plan.addSubtasks.add(d.key); else plan.addSubtasks.delete(d.key);
+      });
+      head.append(selLbl); card.append(head); modal.append(card);
+    });
+
+    // Changed
+    diff.changedSubtasks.forEach(d => {
+      const card = document.createElement("div"); card.className="diff-item";
+      const head = document.createElement("div"); head.className="diff-head";
+      head.innerHTML = `<div><strong>${d.title}</strong> — ${d.cat} ▸ ${d.sub} — <em>${d.text}</em></div>`;
+      card.append(head);
+
+      const hdr = document.createElement("div"); hdr.className="diff-fields";
+      ["Field","Current","Incoming","Action"].forEach(t => {
+        const el=document.createElement("div"); el.className="hdr"; el.textContent=t; hdr.append(el);
+      });
+      card.append(hdr);
+
+      for (const f of ["done","hidden"]) if (f in d.fields) {
+        const name = `${d.key}::st::${f}`;
+        const keep = radio(name,"current","Keep current", true);
+        const use  = radio(name,"incoming","Use incoming");
+        [keep, use].forEach(lbl => {
+          lbl.querySelector("input").addEventListener("change", e => setStFieldAction(d.key, f, e.target.value));
+        });
+        setStFieldAction(d.key, f, "current");
+        card.append(fieldRow(f, d.fields[f].from, d.fields[f].to, (function(){const div=document.createElement("div");div.append(keep,use);return div;})()));
+      }
+      modal.appendChild(card);
+    });
+
+    // Removed (optional)
+    if (showDeletions && diff.removedSubtasks.length) {
+      const h2 = document.createElement("h4"); h2.textContent = "Subtasks to delete";
+      modal.appendChild(h2);
+      diff.removedSubtasks.forEach(d => {
+        const card = document.createElement("div"); card.className="diff-item";
+        const head = document.createElement("div"); head.className="diff-head";
+        head.innerHTML = `<div><strong>${d.title}</strong> — ${d.cat} ▸ ${d.sub} — <em>${d.current.text}</em></div>`;
+        const [selLbl, selCb] = checkbox("Delete this subtask", false);
+        selCb.addEventListener("change", () => {
+          if (selCb.checked) plan.removeSubtasks.add(d.key); else plan.removeSubtasks.delete(d.key);
+        });
+        head.append(selLbl); card.append(head); modal.append(card);
+      });
+    }
+  }
+
+  // Subcategory notes
+  if (diff.changedNotes.length) {
+    const h = document.createElement("h3"); h.textContent = "Subcategory notes changed";
+    modal.appendChild(h);
+    diff.changedNotes.forEach(n => {
+      const card = document.createElement("div"); card.className="diff-item";
+      const head = document.createElement("div"); head.className="diff-head";
+      head.innerHTML = `<div><strong>${n.cat} ▸ ${n.sub}</strong></div>`;
+      card.append(head);
+
+      const name = `${n.key}::note`;
+      const keep = radio(name,"current","Keep current", false);
+      const use  = radio(name,"incoming","Use incoming", false);
+      const app  = radio(name,"append","Append incoming to current", true);
+      [keep, use, app].forEach(lbl => {
+        lbl.querySelector("input").addEventListener("change", e => plan.noteAction.set(n.key, e.target.value));
+      });
+      plan.noteAction.set(n.key, "append");
+
+      const row = (function(){
+        const div=document.createElement("div"); div.className="diff-fields";
+        ["Notes","Current","Incoming","Action"].forEach(t => {
+          const el=document.createElement("div"); el.className="hdr"; el.textContent=t; div.append(el);
+        });
+        const l=document.createElement("div"); l.textContent="Notes";
+        const c1=document.createElement("div"); c1.innerText = n.from || "";
+        const c2=document.createElement("div"); c2.innerText = n.to || "";
+        const c3=document.createElement("div"); c3.append(keep,use,app);
+        div.append(l,c1,c2,c3); return div;
+      })();
+      card.append(row); modal.appendChild(card);
+    });
+  }
+
+  // Footer
+  const foot = document.createElement("div"); foot.className="modal-footer";
+  const left = document.createElement("div"); const right = document.createElement("div");
+  const closeBtn = document.createElement("button"); closeBtn.textContent="Close"; closeBtn.addEventListener("click", () => overlay.style.display="none");
+  const applyBtn = document.createElement("button"); applyBtn.textContent="Apply selected changes";
+  const dlPatch = document.createElement("button"); dlPatch.textContent="Download patch (JSON)";
+  // Download a simple plan for auditing
+  dlPatch.addEventListener("click", () => {
+    const patch = {
+      addItems: Array.from(plan.addItems),
+      removeItems: Array.from(plan.removeItems),
+      itemFieldAction: Array.from(plan.itemFieldAction.entries()),
+      addSubtasks: Array.from(plan.addSubtasks),
+      removeSubtasks: Array.from(plan.removeSubtasks),
+      stFieldAction: Array.from(plan.stFieldAction.entries()),
+      noteAction: Array.from(plan.noteAction.entries())
+    };
+    const blob = new Blob([JSON.stringify(patch, null, 2)], {type:"application/json"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "webapp_checklist_patch.json";
+    document.body.appendChild(a); a.click(); a.remove();
+  });
+  applyBtn.addEventListener("click", () => onApply(plan, incomingStructured));
+  left.append(closeBtn); right.append(dlPatch, applyBtn); foot.append(left,right); modal.appendChild(foot);
+
+  overlay.style.display = "flex";
+}
+
+// Apply the plan to your live `data` using your ensure* functions. :contentReference[oaicite:6]{index=6}
+function applyDiffPlan(plan, incomingStructured) {
+  // Helper: locate subcat reference quickly
+  function locateSubcat(catName, subName) {
+    const cat = ensureCategory(data, catName);
+    return ensureSubcat(cat, subName);
+  }
+
+  // Build incoming index for quick lookups
+  const incIdx = indexStructured(incomingStructured);
+
+  // 1) Added items
+  for (const k of plan.addItems) {
+    const rec = incIdx.items.get(k);
+    if (!rec) continue;
+    const sc = locateSubcat(rec.cat.category, rec.sub.name);
+    const it = ensureItem(sc, rec.it.title);
+    Object.assign(it, deepClone(rec.it)); // copy all fields
+  }
+
+  // 2) Changed items (per-field decisions)
+  for (const [k, fldMap] of plan.itemFieldAction.entries()) {
+    const rec = incIdx.items.get(k);
+    if (!rec) continue;
+    const sc = locateSubcat(rec.cat.category, rec.sub.name);
+    const it = ensureItem(sc, rec.it.title);
+
+    for (const [fld, action] of Object.entries(fldMap)) {
+      if (fld === "tags") {
+        if (action === "incoming") it.tags = deepClone(rec.it.tags || []);
+        else if (action === "union") it.tags = Array.from(unionSets(asSet(it.tags||[]), asSet(rec.it.tags||[])));
+        // "current" means leave as-is
+      } else if (["asvs","desc","tools","links","applic","sources"].includes(fld)) {
+        const curr = it[fld] || "";
+        const inc  = rec.it[fld] || "";
+        if (action === "incoming") it[fld] = inc;
+        else if (action === "append") {
+          if (!curr) it[fld] = inc;
+          else if (inc && !curr.includes(inc)) it[fld] = `${curr}\n\n${inc}`;
+        }
+        // "current" = no change
+      } else if (["done","hidden"].includes(fld)) {
+        if (action === "incoming") it[fld] = !!rec.it[fld];
+      } else if (fld === "priority") {
+        if (action === "incoming") it.priority = Number(rec.it.priority ?? 2);
+      }
+    }
+  }
+
+  // 3) Added subtasks
+  for (const k of plan.addSubtasks) {
+    const rec = incIdx.subtasks.get(k);
+    if (!rec) continue;
+    const sc = locateSubcat(rec.cat.category, rec.sub.name);
+    const it = ensureItem(sc, rec.title);
+    const exists = (it.subtasks||[]).find(s => norm(s.text) === norm(rec.st.text));
+    if (!exists) {
+      it.subtasks = it.subtasks || [];
+      it.subtasks.push(deepClone(rec.st));
+    }
+  }
+
+  // 4) Changed subtasks
+  for (const [k, fldMap] of plan.stFieldAction.entries()) {
+    const rec = incIdx.subtasks.get(k);
+    if (!rec) continue;
+    const sc = locateSubcat(rec.cat.category, rec.sub.name);
+    const it = ensureItem(sc, rec.title);
+    const st = (it.subtasks||[]).find(s => norm(s.text) === norm(rec.st.text));
+    if (!st) continue;
+    for (const [fld, action] of Object.entries(fldMap)) {
+      if (action === "incoming") st[fld] = !!rec.st[fld];
+    }
+  }
+
+  // 5) Notes
+  for (const [sk, action] of plan.noteAction.entries()) {
+    const [catK, subK] = sk.split("||");
+    const catName = catK; const subName = subK;
+    const sc = locateSubcat(catName, subName);
+    const curr = sc.notes || "";
+    const inc  = (incIdx.notes.get(sk) || "");
+    if (action === "incoming") sc.notes = inc;
+    else if (action === "append") {
+      if (!curr) sc.notes = inc;
+      else if (inc && !curr.includes(inc)) sc.notes = `${curr}\n${inc}`;
+    }
+  }
+
+  // 6) Removals (only if user opted-in to show/select deletions)
+  for (const k of plan.removeSubtasks) {
+    const rec = incIdx.subtasks.get(k); // note: for deletions we'd need to look up from CURRENT not incoming
+    // simple fallback: compute path from key
+    const parts = k.split("||");
+    const catName = parts[0], subName = parts[1], title = parts[2], stText = parts.slice(4).join("||").replace(/^st\|\|/, "");
+    const sc = locateSubcat(catName, subName);
+    const it = ensureItem(sc, title);
+    it.subtasks = (it.subtasks||[]).filter(s => norm(s.text) !== norm(stText));
+  }
+  for (const k of plan.removeItems) {
+    const parts = k.split("||");
+    const catName = parts[0], subName = parts[1], title = parts[2];
+    const cat = ensureCategory(data, catName);
+    const sc = ensureSubcat(cat, subName);
+    sc.items = (sc.items||[]).filter(i => norm(i.title) !== norm(title));
+  }
+
+  saveData();
+  collapseAll();
+  render();
+}
+
+
+
+
+// Updated Utility: parse CSV text into array of row objects
+function csvToObjects(csvText) {
+  // State machine CSV parser that supports:
+  // - quoted fields
+  // - embedded commas and newlines
+  // - escaped quotes ("")
+  const rows = [];
+  let row = [];
+  let cur = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < csvText.length; i++) {
+    const ch = csvText[i];
+
+    if (ch === '"') {
+      // If in quotes and next char is also a quote, it's an escaped quote
+      if (inQuotes && csvText[i + 1] === '"') {
+        cur += '"';
+        i++; // skip the second quote
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (ch === ',' && !inQuotes) {
+      row.push(cur);
+      cur = '';
+    } else if ((ch === '\n' || ch === '\r') && !inQuotes) {
+      // Finish the field and the row; swallow CRLF
+      row.push(cur);
+      cur = '';
+      if (row.length > 1 || (row.length === 1 && row[0].trim().length)) {
+        rows.push(row);
+      }
+      row = [];
+      if (ch === '\r' && csvText[i + 1] === '\n') i++;
+    } else {
+      cur += ch;
+    }
+  }
+  // Flush last field/row
+  if (cur.length > 0 || row.length > 0) {
+    row.push(cur);
+    rows.push(row);
+  }
+
+  if (!rows.length) return [];
+
+  // Map to objects using header row
+  let headers = rows.shift().map(h => h.replace(/^\uFEFF?/, '').replace(/^"|"$/g, '').trim());
+  // Build objects
+  const out = [];
+  for (const cols of rows) {
+    if (!cols || cols.every(c => !c || !String(c).trim())) continue;
+    const obj = {};
+    headers.forEach((h, idx) => {
+      obj[h] = (cols[idx] !== undefined ? String(cols[idx]) : '').replace(/^"|"$/g, '');
+    });
+    out.push(obj);
+  }
+  return out;
+}
+
+/*** Import Merge Logic ***/
+function ensureCategory(dataArr, catName) {
+  const name = (catName || "").trim();
+  if (!name) return null;
+  let cat = dataArr.find(c => c.category.toLowerCase() === name.toLowerCase());
+  if (!cat) {
+    cat = { category: name, subcats: [] };
+    dataArr.push(cat);
+  }
+  return cat;
+}
+function ensureSubcat(catObj, subName) {
+  const name = (subName || "(General)").trim() || "(General)";
+  let sc = catObj.subcats.find(s => s.name.toLowerCase() === name.toLowerCase());
+  if (!sc) {
+    sc = { name: name, notes: "", items: [] };
+    catObj.subcats.push(sc);
+  }
+  return sc;
+}
+function ensureItem(subcatObj, itemTitle) {
+  const title = (itemTitle || "(no title)").trim() || "(no title)";
+  let it = subcatObj.items.find(it => it.title.toLowerCase() === title.toLowerCase());
+  if (!it) {
+    it = { title: title, done: false, hidden: false, priority: 2,
+           asvs: "", desc: "", tools: "", links: "", applic: "", sources: "",
+           tags: [], subtasks: [] };
+    subcatObj.items.push(it);
+  }
+  return it;
+}
+function mergePrefillRows(rows) {
+  rows.forEach(row => {
+    const cat = ensureCategory(data, row["Category"]);
+    if (!cat) return;
+    const sc = ensureSubcat(cat, row["Sub Category"]);
+    const it = ensureItem(sc, row["Item"]);
+    // Main item done status
+    const doneVal = (row["Done"] || "").toString().trim().toLowerCase();
+    if (doneVal === "true" || doneVal === "1" || doneVal === "yes") {
+      it.done = true;
+    } else if (doneVal === "false" || doneVal === "0" || doneVal === "no") {
+      it.done = false;
+    }
+    // Subtask (if present)
+    const subtaskText = (row["Subtask"] || "").trim();
+    if (subtaskText) {
+      const subDoneVal = (row["Subtask Done"] || "").toString().trim().toLowerCase();
+      const subHiddenVal = (row["Subtask Hidden"] || "").toString().trim().toLowerCase();
+      const stDone = (subDoneVal === "true" || subDoneVal === "1" || subDoneVal === "yes");
+      const stHidden = (subHiddenVal === "true" || subHiddenVal === "1" || subHiddenVal === "yes");
+      // find or add subtask
+      it.subtasks = it.subtasks || [];
+      const existingSt = it.subtasks.find(s => s.text === subtaskText);
+      if (!existingSt) {
+        it.subtasks.push({ text: subtaskText, done: stDone, hidden: stHidden });
+      } else {
+        // If it exists, optionally update its done/hidden if provided
+        if (existingSt.done !== stDone) existingSt.done = stDone;
+        if (existingSt.hidden !== stHidden) existingSt.hidden = stHidden;
+      }
+    }
+    // Merge detail fields (append if existing content)
+    if (row["ASVS"]) {
+      it.asvs = it.asvs ? it.asvs + "\n" + row["ASVS"] : row["ASVS"];
+    }
+    if (row["Description"]) {
+      it.desc = it.desc ? it.desc + "\n\n" + row["Description"] : row["Description"];
+    }
+    if (row["Tools"]) {
+      it.tools = it.tools ? it.tools + "\n\n" + row["Tools"] : row["Tools"];
+    }
+    if (row["Links"]) {
+      it.links = it.links ? it.links + "\n\n" + row["Links"] : row["Links"];
+    }
+    if (row["Applicability"]) {
+      it.applic = it.applic ? it.applic + "\n\n" + row["Applicability"] : row["Applicability"];
+    }
+    if (row["Sources"]) {
+      it.sources = it.sources ? it.sources + "\n\n" + row["Sources"] : row["Sources"];
+    }
+    // Tags (split and merge)
+    if (row["Tags"]) {
+      const tags = row["Tags"].split(/[;,]+/).map(t => t.trim()).filter(Boolean);
+      it.tags = Array.from(new Set([...(it.tags||[]), ...tags]));
+    }
+    // Priority
+    if (row["Priority"] !== undefined && row["Priority"] !== "") {
+      const pr = row["Priority"];
+      let prNum = (typeof pr === "number") ? pr : parseInt(pr);
+      if (!isNaN(prNum)) {
+        prNum = Math.max(0, Math.min(3, prNum));
+        it.priority = prNum;
+      } else {
+        // accept textual priorities like "High"/"Low" if present
+        const pText = pr.toString().toLowerCase();
+        if (pText.includes("high")) it.priority = 3;
+        else if (pText.includes("very low") || pText.includes("very-low")) it.priority = 0;
+        else if (pText.includes("medium")) it.priority = 2;
+        else if (pText.includes("low")) it.priority = 1;
+      }
+    }
+    // Hidden
+    if (row["Hidden"] !== undefined && row["Hidden"] !== "") {
+      const hidVal = row["Hidden"].toString().trim().toLowerCase();
+      if (hidVal === "true" || hidVal === "1" || hidVal === "yes") {
+        it.hidden = true;
+      } else if (hidVal === "false" || hidVal === "0" || hidVal === "no") {
+        it.hidden = false;
+      }
+    }
+    // Subcategory Notes
+    if (row["Subcategory Notes"]) {
+      const note = row["Subcategory Notes"].trim();
+      if (note) {
+        if (!sc.notes || !sc.notes.trim()) {
+          sc.notes = note;
+        } else if (sc.notes.trim() !== note) {
+          // If a different note exists, append (edge case)
+          sc.notes += "\n" + note;
+        }
+      }
+    }
+  });
+  saveData();
+}
+
+/*** Export Functions ***/
+function exportToCSV(dataArr) {
+  const header = ["Category","Sub Category","Item","Done",
+                  "Subtask","Subtask Done","Subtask Hidden",
+                  "ASVS","Description","Tools","Links","Applicability","Sources","Tags",
+                  "Priority","Hidden","Subcategory Notes"];
+  const rows = [header];
+  dataArr.forEach(cat => {
+    cat.subcats.forEach(sc => {
+      let subcatNoteOutput = false;
+      sc.items.forEach((it, itemIndex) => {
+        // Helper to output a row (either item or subtask row)
+        const outputRow = (subText, subDone, subHidden, noteVal) => {
+          rows.push([
+            cat.category,
+            sc.name,
+            it.title,
+            it.done ? "TRUE" : "FALSE",
+            subText, 
+            subDone,
+            subHidden,
+            it.asvs || "",
+            it.desc || "",
+            it.tools || "",
+            it.links || "",
+            it.applic || "",
+            it.sources || "",
+            (it.tags||[]).join(" "),
+            it.priority !== undefined ? String(it.priority) : "",
+            it.hidden ? "TRUE" : "FALSE",
+            noteVal
+          ]);
+        };
+        if (Array.isArray(it.subtasks) && it.subtasks.length > 0) {
+          it.subtasks.forEach((st, stIndex) => {
+            // Only include subcategory note on the *first* output row of this subcategory
+            let noteVal = "";
+            if (!subcatNoteOutput) {
+              noteVal = sc.notes || "";
+              subcatNoteOutput = true;
+            }
+            outputRow(st.text, st.done ? "TRUE":"FALSE", st.hidden ? "TRUE":"FALSE", noteVal);
+          });
+        } else {
+          // No subtask row; output the item itself
+          let noteVal = "";
+          if (!subcatNoteOutput) {
+            noteVal = sc.notes || "";
+            subcatNoteOutput = true;
+          }
+          outputRow("", "", "", noteVal);
+        }
+      });
+    });
+  });
+  // Escape and quote each field, then join
+  return rows.map(cols => cols.map(val => {
+    const str = val == null ? "" : String(val);
+    // escape double quotes by doubling them
+    return `"${str.replace(/"/g, '""')}"`;
+  }).join(",")).join("\n");
+}
+
+/*** Rendering ***/
+function render() {
+  const filterText = $("#search").value.toLowerCase().trim();
+  const statusFilter = $("#filter").value;  // "all", "open", or "done"
+
+  const tagMap = new Map();
+  data.forEach((cat, catIdx) => {
+    cat.subcats?.forEach((sc, scIdx) => {
+      sc.items?.forEach((it, itIdx) => {
+        const itemId = `item-${catIdx}-${scIdx}-${itIdx}`;
+        if (it.tags && it.tags.length) {
+          it.tags.forEach(tag => {
+            if (!tagMap.has(tag)) {
+              tagMap.set(tag, []);
+            }
+            tagMap.get(tag).push({ title: it.title || '(no title)', id: itemId });
+          });
+        }
+      });
+    });
+  });
+
+  const grid = $("#grid");
+  grid.innerHTML = "";  // clear current view
+  let totalCount = 0, doneCount = 0, categoryCount = 0;
+  data.forEach((cat, catIdx) => {
+    let catTotal = 0, catDone = 0, catPriority = -1;
+    const catKey = cat.category || "(no category)";
+    const card = createElem("div", { className: "card" });
+    if (collapsedState[catKey]) card.classList.add("collapsed");
+    // Category header with master checkbox
+    const catCheckbox = createElem("input", { type: "checkbox", checked: false });
+    // When category checkbox toggled, mark all items in category done/undone
+    catCheckbox.addEventListener("change", () => {
+      cat.subcats.forEach(sc => {
+        sc.items.forEach(it => { it.done = catCheckbox.checked; });
+      });
+      updateCounts();
+    });
+    const catTitle = (cat.category || "(no category)").replace(/\s*\([Vv](\d+)\)/, " [V$1]");
+    const titleEl = createElem("div", { className: "title" }, catTitle);
+    const countEl = createElem("div", { className: "count" }, "0/0");
+    const progressBar = createElem("div", { className: "progress-bar" });
+    const progressBarInner = createElem("div", { className: "progress-bar-inner" });
+    progressBar.append(progressBarInner);
+    const topBar = createElem("div", { className: "top" }, catCheckbox, titleEl, progressBar, countEl);
+    // Click on category bar toggles collapse (ignore clicks on the checkbox itself)
+    topBar.addEventListener("click", e => {
+      if (e.target !== catCheckbox) {
+        card.classList.toggle("collapsed");
+        collapsedState[catKey] = card.classList.contains("collapsed");
+        localStorage.setItem(COLLAPSE_KEY, JSON.stringify(collapsedState));
+      }
+    });
+    const contentWrapper = createElem("div", { className: "card-content" });
+    // Subcategories
+    cat.subcats.forEach((sc, scIdx) => {
+      const scKey = `${catKey}::${sc.name || "(General)"}`;
+      const secDiv = createElem("div", { className: "subcat" });
+      if (collapsedState[scKey]) secDiv.classList.add("collapsed");
+      // Subcategory header with checkbox
+      const subcatCheckbox = createElem("input", { type: "checkbox", checked: false });
+      subcatCheckbox.addEventListener("change", () => {
+        sc.items.forEach(it => { it.done = subcatCheckbox.checked; });
+        updateCounts();
+      });
+      const subcatTitle = createElem("span", {}, sc.name || "(General)");
+      const subcatCountEl = createElem("div", { className: "count" }, "0/0");
+      const subcatProgressBar = createElem("div", { className: "progress-bar" });
+      const subcatProgressBarInner = createElem("div", { className: "progress-bar-inner" });
+      subcatProgressBar.append(subcatProgressBarInner);
+      const subcatHeader = createElem("h3", {}, subcatCheckbox, subcatTitle, subcatProgressBar, subcatCountEl);
+      subcatHeader.addEventListener("click", e => {
+        if (e.target !== subcatCheckbox) {
+          secDiv.classList.toggle("collapsed");
+          collapsedState[scKey] = secDiv.classList.contains("collapsed");
+          localStorage.setItem(COLLAPSE_KEY, JSON.stringify(collapsedState));
+        }
+      });
+      secDiv.append(subcatHeader);
+      // We'll append notes and items after filtering
+      let anyItemShown = false;
+      const subcatTotal = sc.items.length;
+      const subcatDone = sc.items.filter(i => i.done).length;
+      subcatCountEl.textContent = `${subcatDone}/${subcatTotal}`;
+      const subcatProgress = subcatTotal > 0 ? (subcatDone / subcatTotal) * 100 : 0;
+      subcatProgressBarInner.style.width = `${subcatProgress}%`;
+      subcatCheckbox.checked = (subcatDone === subcatTotal && subcatTotal > 0);
+
+      sc.items.forEach((it, itIdx) => {
+        // Filter conditions:
+        if (filterText) {
+          // Build a haystack of searchable text: category + subcat + item title + tags + description + tools + links
+          const hay = (cat.category + " " + sc.name + " " + it.title + " " +
+                       (it.tags || []).join(" ") + " " + (it.asvs || "") + " " +
+                       (it.desc || "") + " " + (it.tools || "") + " " + (it.links || "")).toLowerCase();
+          if (!hay.includes(filterText)) return;  // text filter not matched
+        }
+        if (tagFilter && !(it.tags || []).includes(tagFilter)) return;  // tag filter active and item doesn't have it
+        if (!showHidden && it.hidden) return;  // hidden items filtered out
+        if (statusFilter === "open" && it.done) return;    // skip done items
+        if (statusFilter === "done" && !it.done) return;   // skip open items
+        if (!prioFilterSet.has(it.priority ?? 2)) return;  // skip if priority not selected
+        // If we reach here, item should be shown
+        anyItemShown = true;
+        catPriority = Math.max(catPriority, it.priority ?? 2);
+        const itemDiv = createElem("div", { className: "item" });
+        const itemId = `item-${catIdx}-${scIdx}-${itIdx}`;
+        itemDiv.id = itemId;
+        // Add priority and hidden CSS classes
+        itemDiv.classList.add(`priority-${it.priority !== undefined ? it.priority : 2}`);
+        if (it.hidden) itemDiv.classList.add("hidden-item");
+        if (it.done) itemDiv.classList.add("done");
+        // Item header with checkbox and title
+        const itemHead = createElem("div", { className: "item-head" });
+        const itemCb = createElem("input", { type: "checkbox", checked: !!it.done });
+        itemCb.addEventListener("change", () => {
+          it.done = itemCb.checked;
+          updateCounts();
+        });
+        const titleText = it.title || "(no title)";
+        const asvsText = it.asvs ? ` [${it.asvs}]` : "";
+        itemHead.append(itemCb, createElem("div", { className: "item-title" }, titleText + asvsText));
+        itemDiv.append(itemHead);
+        // Tags
+        if (it.tags && it.tags.length) {
+          const tagsDiv = createElem("div", { className: "tags" });
+          it.tags.forEach(tag => {
+            const tagSpan = createElem("span", { className: "tag" }, tag);
+            tagSpan.addEventListener("click", () => {
+              tagFilter = (tagFilter === tag ? "" : tag);
+              render();
+            });
+            tagsDiv.append(tagSpan);
+          });
+          itemDiv.append(tagsDiv);
+        }
+        // Subtasks (if any)
+        if (Array.isArray(it.subtasks) && it.subtasks.length > 0) {
+          const stContainer = createElem("div", { className: "subtasks" });
+          it.subtasks.forEach(st => {
+            if (!showHidden && st.hidden) return; // hide hidden subtask unless toggled
+            // (We don't filter subtasks by priority or search text separately – assume they fall under item’s filtering)
+            const stRow = createElem("div", { className: "subtask" });
+            if (st.hidden) stRow.classList.add("hidden-subtask");
+            if (st.done) stRow.classList.add("done");
+            const stCb = createElem("input", { type: "checkbox", checked: !!st.done });
+            stCb.addEventListener("change", () => {
+              st.done = stCb.checked;
+              updateCounts();
+            });
+            stRow.append(stCb, createElem("div", {}, st.text));
+            stContainer.append(stRow);
+          });
+          if (stContainer.children.length > 0) {
+            itemDiv.append(stContainer);
+          }
+        }
+        // Details section (collapsible)
+        const detailsEl = createElem("details", {});
+        const summaryEl = createElem("summary", {}, "Details");
+        detailsEl.append(summaryEl);
+        // Priority selector
+        const prioLabel = createElem("label", { className: "item-meta" });
+        const prioSelect = createElem("select", {});
+        ["3 - High","2 - Medium","1 - Low","0 - Very Low"].forEach(optionText => {
+          const opt = createElem("option", {});
+          opt.value = optionText[0];  // first char is the number
+          opt.textContent = optionText;
+          if (parseInt(opt.value) === (it.priority ?? 2)) {
+            opt.selected = true;
+          }
+          prioSelect.append(opt);
+        });
+        prioSelect.addEventListener("change", () => {
+          it.priority = parseInt(prioSelect.value);
+          saveData();
+          render();  // re-render to update item order/color if needed
+        });
+        prioLabel.append("Priority: ", prioSelect);
+        detailsEl.append(prioLabel);
+        // Hide toggle
+        const hideLabel = createElem("label", { className: "item-meta" });
+        const hideCheck = createElem("input", { type: "checkbox", checked: !!it.hidden });
+        hideCheck.addEventListener("change", () => {
+          it.hidden = hideCheck.checked;
+          saveData();
+          render();
+        });
+        hideLabel.append(hideCheck, " Hide by default");
+        detailsEl.append(hideLabel);
+        // Editable text fields (ASVS, Description, etc.)
+        const metaFields = [
+          ["ASVS", it.asvs || ""],
+          ["Description", it.desc || ""],
+          ["Tools", it.tools || ""],
+          ["Links", it.links || ""],
+          ["Applicability / N/A", it.applic || ""],
+          ["Sources", it.sources || ""]
+        ];
+        metaFields.forEach(([label, text]) => {
+          detailsEl.append(createElem("div", { className: "item-meta" }, label));
+          const textarea = createElem("textarea", {});
+          textarea.value = text;
+          textarea.addEventListener("input", () => {
+            // Save changes to corresponding field
+            switch(label) {
+              case "ASVS": it.asvs = textarea.value; break;
+              case "Description": it.desc = textarea.value; break;
+              case "Tools": it.tools = textarea.value; break;
+              case "Links": it.links = textarea.value; break;
+              case "Applicability / N/A": it.applic = textarea.value; break;
+              case "Sources": it.sources = textarea.value; break;
+            }
+            saveData();
+          });
+          detailsEl.append(textarea);
+        });
+        // Related items based on shared tags
+        if (it.tags && it.tags.length) {
+          const related = new Map();
+          it.tags.forEach(tag => {
+            if (tagMap.has(tag)) {
+              tagMap.get(tag).forEach(relatedItem => {
+                // Don't link an item to itself
+                if (relatedItem.id !== itemId) {
+                  if (!related.has(relatedItem.title)) {
+                    related.set(relatedItem.title, relatedItem.id);
+                  }
+                }
+              });
+            }
+          });
+
+          if (related.size < 0) {
+            const relHeading = createElem("div", { className: "item-meta" }, "Related items:");
+            const relList = createElem("ul", { className: "related-list" });
+            related.forEach((rid, title) => {
+              const li = createElem("li", { className: "related-item" }, title);
+              li.addEventListener("click", () => {
+                const target = document.getElementById(rid);
+                if (target) target.scrollIntoView({ behavior: "smooth" });
+              });
+              relList.append(li);
+            });
+            detailsEl.append(relHeading, relList);
+          }
+        }
+        itemDiv.append(detailsEl);
+        secDiv.append(itemDiv);
+        // Update counters
+        catTotal++;
+        if (it.done) catDone++;
+        totalCount++;
+        if (it.done) doneCount++;
+      }); // end items loop
+      // Append subcategory notes section if anyItemShown and if notes exist or we want to allow adding notes
+      if (anyItemShown) {
+        // Insert subcategory notes details after header
+        const notesDetails = createElem("details", { className: "subcat-details" });
+        const notesSummary = createElem("summary", {}, "Notes");
+        notesDetails.append(notesSummary);
+        const notesArea = createElem("textarea", {});
+        notesArea.value = sc.notes || "";
+        notesArea.addEventListener("input", () => {
+          sc.notes = notesArea.value;
+          saveData();
+        });
+        notesDetails.append(notesArea);
+        // If there's no note content, we could leave it closed by default (details default is closed anyway).
+        secDiv.insertBefore(notesDetails, secDiv.children[1] || null);
+        contentWrapper.append(secDiv);
+      }
+    }); // end subcats loop
+    if (catTotal > 0) {
+      // Update category completion count in header
+      countEl.textContent = `${catDone}/${catTotal}`;
+      card.classList.add(`cat-priority-${catPriority}`);
+      const catProgress = catTotal > 0 ? (catDone / catTotal) * 100 : 0;
+      progressBarInner.style.width = `${catProgress}%`;
+      card.append(topBar, contentWrapper);
+      grid.append(card);
+      categoryCount++;
+      // Mark category checkbox checked state if all items done (and not zero items)
+      catCheckbox.checked = (catDone === catTotal);
+    }
+  }); // end categories loop
+  // Update overall counters
+  $("#overall").textContent = `${doneCount}/${totalCount} checks completed`;
+  $("#catcount").textContent = `${categoryCount} categories`;
+}
+function updateCounts() {
+  saveData();
+  render();
+}
+
+/*** Event Listeners for Filters and Buttons ***/
+$("#search").addEventListener("input", () => { render(); });
+$("#filter").addEventListener("change", () => { render(); });
+document.querySelectorAll(".prioChk").forEach(cb => {
+  cb.addEventListener("change", e => {
+    const val = parseInt(e.target.value);
+    if (e.target.checked) {
+      prioFilterSet.add(val);
+    } else {
+      prioFilterSet.delete(val);
+    }
+    render();
+  });
+});
+$("#showHidden").addEventListener("change", e => {
+  showHidden = e.target.checked;
+  render();
+});
+$("#save").addEventListener("click", () => {
+  saveData();
+  const statusPill = $("#status-message");
+  statusPill.textContent = `Saved locally at ${new Date().toLocaleTimeString()}`;
+  statusPill.style.display = "inline-block";
+});
+$("#reset").addEventListener("click", () => {
+  // Reset to embedded rawData snapshot
+  data = JSON.parse(JSON.stringify(rawData));
+  saveData();
+  render();
+});
+$("#exportJSON").addEventListener("click", () => {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  const filename = "webapp_checklist.json";
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  const statusPill = $("#status-message");
+  statusPill.textContent = `Exported ${filename} at ${new Date().toLocaleTimeString()}`;
+  statusPill.style.display = "inline-block";
+});
+$("#exportCSV").addEventListener("click", () => {
+  const csvStr = exportToCSV(data);
+  const blob = new Blob([csvStr], { type: "text/csv" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  const filename = "webapp_checklist.csv";
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  const statusPill = $("#status-message");
+  statusPill.textContent = `Exported ${filename} at ${new Date().toLocaleTimeString()}`;
+  statusPill.style.display = "inline-block";
+});
+/*** Patch F: Enhanced import handler with diff ***/
+$("#fileInput").addEventListener("change", event => {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  // Choose high-level mode
+  const wantsReview = confirm("Do you want to REVIEW & SELECT changes before applying?");
+  let mode = null;
+  if (!wantsReview) {
+    const wantsMerge = confirm("Do you want to MERGE the imported data with the current checklist?");
+    if (wantsMerge) mode = "merge";
+    else if (confirm("Do you want to REPLACE the current checklist with the imported data?")) mode = "replace";
+    else { event.target.value = ""; return; }
+  }
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const content = e.target.result;
+      const name = file.name;
+
+      // Parse any incoming into a normalized structured form
+      const incomingStructured = parseIncomingToStructured(name, content);
+
+      if (wantsReview) {
+        // Build diff (show deletions only if Replace semantics are desired)
+        const diff = diffStructured(data, incomingStructured, { considerDeletions: true });
+        openDiffModal(diff, incomingStructured, { title: `Review & Merge — ${name}`, showDeletions: true }, (plan) => {
+          applyDiffPlan(plan, incomingStructured);
+          // Baseline becomes the new current state
+          setBaseline(deepClone(data));
+          const statusPill = $("#status-message");
+          statusPill.textContent = `Imported (reviewed): ${file.name}`;
+          statusPill.style.display = 'inline-block';
+          event.target.value = "";
+          $("#search").focus();
+        });
+        return; // handled via modal
+      }
+
+      // Non-review paths: preserve original behavior with better parsing
+      if (mode === "replace") {
+        data = normalizeStructuredJSON(incomingStructured); // just to be safe
+      } else if (mode === "merge") {
+        // Merge once using your existing row->merge logic to keep behavior. We convert structured to "rows" first.
+        // Simpler: directly deep-merge by iterating incomingStructured using your ensure* helpers
+        incomingStructured.forEach(cat => {
+          const catRef = ensureCategory(data, cat.category);
+          (cat.subcats||[]).forEach(sc => {
+            const scRef = ensureSubcat(catRef, sc.name);
+            if (sc.notes) scRef.notes = scRef.notes ? `${scRef.notes}\n${sc.notes}` : sc.notes;
+            (sc.items||[]).forEach(it => {
+              const itRef = ensureItem(scRef, it.title);
+              // conservative merge: OR done, keep hidden strictly, max priority, append text, union tags
+              itRef.done = itRef.done || !!it.done;
+              itRef.hidden = !!it.hidden;
+              itRef.priority = Math.max(itRef.priority ?? 2, it.priority ?? 2);
+              ["asvs","desc","tools","links","applic","sources"].forEach(f => {
+                if (it[f]) itRef[f] = itRef[f] ? `${itRef[f]}\n\n${it[f]}` : it[f];
+              });
+              itRef.tags = Array.from(unionSets(asSet(itRef.tags||[]), asSet(it.tags||[])));
+              (it.subtasks||[]).forEach(st => {
+                itRef.subtasks = itRef.subtasks || [];
+                const ex = itRef.subtasks.find(s => norm(s.text) === norm(st.text));
+                if (!ex) itRef.subtasks.push({ text: st.text, done: !!st.done, hidden: !!st.hidden });
+                else { ex.done = ex.done || !!st.done; ex.hidden = !!st.hidden; }
+              });
+            });
+          });
+        });
+      } else {
+        alert("No import mode selected.");
+        return;
+      }
+
+      saveData();
+      collapseAll();
+      render();
+      // Update baseline after successful import
+      setBaseline(deepClone(data));
+      const statusPill = $("#status-message");
+      statusPill.textContent = `Imported: ${file.name} (${mode})`;
+      statusPill.style.display = 'inline-block';
+    } catch (err) {
+      console.error("Import failed:", err);
+      alert("Failed to import: " + err.message);
+    } finally {
+      event.target.value = "";
+    }
+  };
+  reader.readAsText(file);
+});
+
+/*** Initial Render ***/
+render();
+</script>
+</body>
+</html>
