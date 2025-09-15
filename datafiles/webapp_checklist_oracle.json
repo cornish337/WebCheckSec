@@ -1244,11 +1244,11 @@
             "hidden": false,
             "priority": 2,
             "asvs": "2.6.1",
-            "desc": "Todo: Description",
-            "tools": "Todo: Tools",
-            "links": "Todo: Links",
-            "applic": "Todo: Applicability",
-            "sources": "Todo: Sources",
+            "desc": "One-time backup codes (lookup secrets provided for MFA recovery) must be invalidated after a single use:contentReference[oaicite:18]{index=18}. If a recovery code can be used repeatedly, it effectively becomes a static password, defeating the purpose of MFA. Attackers who obtain a backup code (via shoulder-surfing, phishing, or old database leaks) could reuse it to bypass MFA whenever they want. Single-use ensures that even if one code is compromised, it cannot be used again after the first time, limiting the window of attack.",
+            "tools": "- **Use-Once Test**: If you have been given a set of recovery codes for your test account, use one of them to log in or bypass MFA. Then attempt to use the same code again for a subsequent login. The expected result is that the code is rejected on the second attempt. This can be done manually or via script.\n- **Multiple Attempt Automation**: Write a small script or use **Burp Intruder** to attempt login with the same backup code twice in succession. Ensure the second attempt fails with an \"invalid code\" message.\n- **UI Examination**: Some applications display used codes or remove them from the list in the account settings once used. Verify that after using a code, it either disappears or is marked as used in the user interface, indicating it’s invalid now.\n- **Report Checks**: If available, check audit logs or account activity to confirm that each code has an associated \"used\" timestamp and cannot be reused by design.",
+            "links": "- **OWASP ASVS 4.0** – V2.6.1 specifies that lookup secrets (backup codes) must be designed for one-time use only.\n- **OWASP Authentication Cheat Sheet** – Advises that backup or recovery codes should be treated as one-time passwords, thus invalid after use, to maintain security parity with other MFA factors.",
+            "applic": "Applicable whenever backup/recovery codes are provided for MFA or account recovery. Mark N/A if the application does not implement any form of one-time recovery code. If the app uses only single-use links emailed for recovery (and no pre-generated codes), this specific check is N/A (though similar one-time principles apply to those links).",
+            "sources": "ASVS V2.6.1; OWASP Auth Cheat Sheet",
             "tags": [
               "Todo: Tags"
             ],
@@ -1260,11 +1260,11 @@
             "hidden": false,
             "priority": 2,
             "asvs": "2.6.2",
-            "desc": "Todo: Description",
-            "tools": "Todo: Tools",
-            "links": "Todo: Links",
-            "applic": "Todo: Applicability",
-            "sources": "Todo: Sources",
+            "desc": "Backup codes or lookup secrets should be **cryptographically strong** in order to resist guessing or brute force:contentReference[oaicite:19]{index=19}. ASVS recommends at least 112 bits of entropy for such secrets. In practice, this means codes should be sufficiently long (e.g., 8+ random alphanumeric characters or more if numeric-only) and unpredictable. If codes are too short or follow a pattern (e.g., simple dictionary words or incrementing numbers), an attacker could guess them, especially if they can automate attempts. High entropy (or securely storing them as salted hashes) ensures that even if an attacker obtains database access or attempts offline cracking, the codes remain impractical to crack.",
+            "tools": "- **Examine Code Format**: Look at the format of recovery codes given to a user. Are they, for example, 6-digit numbers or 4-word phrases? Short numeric codes (like 6 digits) only have 10^6 possibilities (20 bits of entropy), which is far below 112 bits – this would be insufficient unless other mitigations (like rate limiting) strictly prevent guessing.\n- **Length & Character Analysis**: If codes are alphanumeric, count their length. Each character of a random alphanumeric string is ~5.95 bits of entropy (log2(62)). To achieve ~112 bits, you'd need around 19 characters. In practice, some systems use 16 characters (which is ~95 bits) or provide a set of multiple codes. Assess if the provided scheme roughly approaches the intended entropy (e.g., 10 random hex digits is only ~40 bits, which is weak).\n- **Attempt Limited Brute**: In a safe testing environment, you might try a **wordlist attack** if you suspect weak generation (e.g., if codes look like dictionary words or small numbers). Use a tool like **hashcat** (if you have hashed codes and salt from a DB in a white-box test) or **ffuf** to online test a subset of possibilities (if no lockout exists – though lack of lockout is another issue!).\n- **Review Storage**: If possible through an admin interface or logs, verify that the server is not storing these codes in plaintext. Ideally, the app should store a hash of the code with a per-code unique salt (to prevent offline cracking if DB is compromised). This might be out of scope for pure blackbox, but it can sometimes be inferred from response behaviors or confirmed via documentation.",
+            "links": "- **OWASP ASVS 4.0** – V2.6.2 requires that lookup secrets have at least 112 bits of entropy (or are salted and hashed appropriately) for security.\n- **NIST SP 800-63B** – Section on out-of-band authenticators and look-up secrets recommends using random values with high min-entropy to prevent guessing:contentReference[oaicite:20]{index=20}.",
+            "applic": "Applicable if the application provides backup/lookup codes. N/A if no such feature exists. If backup codes are only numeric due to UX but combined with other factors (rare), consider the overall security; however, standalone weak codes should be treated as a vulnerability rather than N/A.",
+            "sources": "ASVS V2.6.2; NIST 800-63B (lookup secrets)",
             "tags": [
               "Todo: Tags"
             ],
@@ -1275,12 +1275,12 @@
             "done": false,
             "hidden": false,
             "priority": 2,
-            "asvs": "2.6.3",
-            "desc": "Todo: Description",
-            "tools": "Todo: Tools",
-            "links": "Todo: Links",
-            "applic": "Todo: Applicability",
-            "sources": "Todo: Sources",
+            "asvs": "",
+            "desc": "In addition to being one-time and high entropy, backup codes should not follow any obvious patterns or be derivable from user data. This ensures they cannot be subject to offline cracking or simple guessing if leaked. For example, codes should not be just a hash of the username or a static list distributed to all users. They should be unique per user and unpredictable. This overlaps with the entropy requirement: essentially, any **predictability** or reuse across accounts severely weakens the secrets and could allow an attacker with partial information (like one code from one user) to infer others.",
+            "tools": "- **Cross-User Comparison**: If you can register multiple accounts, obtain their backup codes. Ensure each set of codes is completely different and no patterns emerge (e.g., not all codes starting with user’s initials or a common prefix). If you see a pattern or formula, that's an issue.\n- **Check Code Generation**: If documentation or observation suggests codes are derived (e.g., hashing user ID with a static secret), consider that an offline attack vector (if that secret is known or guessable). This usually requires white-box knowledge, but sometimes clues appear in code or URLs.\n- **Guess Testing**: Similar to entropy testing, try to guess another user’s code if you suspect a pattern. For example, if user A’s codes look like `ABC123, DEF456...` and user B’s look like a continuation `GHI789...`, it indicates predictability. Use manual analysis or scripting to confirm patterns.\n- **Inspect for Re-use**: Ensure the list of codes given to one user isn’t reused for another (should never happen). This would be a gross misimplementation but is straightforward: just visually or programmatically diff code sets from different accounts (in a test scenario).",
+            "links": "- **OWASP ASVS 4.0** – V2.6.3 further emphasizes that lookup secrets must be resistant to guessing and not derive from information that could be obtained or precomputed by an attacker.\n- **OWASP Cryptographic Storage Cheat Sheet** – While not specific to backup codes, it underscores avoiding predictable pseudo-random generators for any security tokens.",
+            "applic": "This is relevant for any system issuing backup secrets. Only not applicable if no such secrets exist. Essentially, if the above items (one-time and high entropy) are satisfied, this will usually be satisfied; it’s another lens on the same issue of unpredictability.",
+            "sources": "ASVS V2.6.3; OWASP Crypto CS",
             "tags": [
               "Todo: Tags"
             ],
@@ -1647,6 +1647,96 @@
             "subtasks": []
           }
         ]
+      },
+      {
+        "name": "Credential Recovery / Reset",
+        "notes": "",
+        "items": [
+          {
+            "title": "If OTP/MFA is lost the user identity should be verified",
+            "done": false,
+            "hidden": false,
+            "priority": 2,
+            "asvs": "",
+            "desc": "If a user loses their second-factor device or one-time codes, the application **must** perform strict identity verification before disabling MFA or providing recovery options. This prevents attackers from exploiting weak recovery processes to bypass MFA (a common support desk or social engineering target). In practice, this means requiring additional proof of identity (beyond just email) – such as backup codes, personal info verification, or identity documents – before allowing MFA reset or removal:contentReference[oaicite:0]{index=0}:contentReference[oaicite:1]{index=1}. Without this step, an attacker who compromises a victim’s email or calls support could easily defeat MFA by pretending the factor is lost.",
+            "tools": "This is often a policy/process test:\n- **Process Review**: Attempt to reset or remove MFA via account recovery. For example, indicate you lost your authenticator and observe what steps are required. If the application simply sends an email link or uses only knowledge-based questions, that is weak verification. A secure process might require contacting support with identity proof or using pre-established backup verification methods.\n- **Manual Test**: If an automated flow exists (e.g., a \"Forgot MFA\" link), follow it. Provide incorrect or minimal info and see if the system still lets you disable MFA. A strong system should either reject insufficient info or escalate to manual verification.\n- **Social Engineering Resilience**: If possible, evaluate support channels by inquiring about MFA reset requirements. Ensure they ask for robust identity proof and not just basic account info.\n- There are no automated scanners for this logic; it’s more of a procedural check. However, documenting the required steps is key to identify gaps.",
+            "links": "- **OWASP WSTG** – *Testing for Weak Password Change or Reset Functionalities (WSTG-ATHN-09)* covers verifying that account recovery (including MFA reset) requires proper verification:contentReference[oaicite:2]{index=2}.\n- **NIST SP 800-63B** – Discusses secure authenticator recovery (section 6) and recommends identity proofing equivalent to initial enrollment if an authenticator is lost:contentReference[oaicite:3]{index=3}.",
+            "applic": "Applicable whenever users can reset MFA or recover accounts with MFA enabled. Mark N/A only if the application does not implement any MFA or recovery process (thus no MFA to lose), or if MFA reset is entirely handled by a third-party IdP beyond the app’s control. In all other cases, this check ensures losing a second factor doesn’t equate to losing the account.",
+            "sources": "WSTG-ATHN-09; NIST 800-63B (recovery guidance)",
+            "tags": [],
+            "subtasks": []
+          },
+          {
+            "title": "Password reset tokens should not be predictable",
+            "done": false,
+            "hidden": false,
+            "priority": 2,
+            "asvs": "",
+            "desc": "Password reset tokens (or links) should be generated using a cryptographically secure random value with high entropy. If tokens are predictable (e.g., sequential values, base64 of username, or a short random string), an attacker could guess or enumerate them:contentReference[oaicite:4]{index=4}. This would allow malicious actors to obtain valid reset tokens and reset other users’ passwords without their interaction. Ensuring unpredictability (at least 16+ bytes of randomness) prevents offline guessing and makes targeted account takeover via reset tokens infeasible.",
+            "tools": "- **Token Entropy Inspection**: Request multiple password reset links for your own account (if possible in a test environment). Collect the tokens (from URLs or emails) and analyze their length and character variety. If all tokens are similar length and appear random (e.g., a long hex or base64 string), that's good. If you detect a pattern or very short tokens, that's a red flag. Tools like **Burp Suite** or a simple script can automate requesting resets and capturing tokens.\n- **Replay Attack Check**: Use any gathered understanding to attempt guesses. For example, if a token looks like a GUID or incremental number, try altering it or predicting the next value and see if the application accepts it for a password reset.\n- **Fuzzing**: In a safe test environment (and with permission), you could use a tool like **ffuf** or custom scripts to brute-force a token if you suspect a small space. This is usually only feasible if the token is obviously too short or simple.\n- **Review Implementation**: If possible, review any documentation or observe whether the token contains easily decoded information (like base64 of a timestamp). This can hint at insufficient randomness.",
+            "links": "- **OWASP WSTG** – *Testing for Weak Password Reset* focuses on token generation and entropy:contentReference[oaicite:5]{index=5}:contentReference[oaicite:6]{index=6}.\n- **OWASP Forgot Password Cheat Sheet** – Recommends using securely random tokens for password resets and highlights risks of predictable tokens.",
+            "applic": "Always applicable for applications with a password reset feature. Mark N/A only if the app does not implement password resets (e.g., external identity provider handles it entirely). If the app uses a standard framework or email-as-a-token, still test entropy since misconfiguration is possible. If password resets are not used (rare), this is N/A.",
+            "sources": "WSTG-ATHN-09; OWASP Forgot Password CS",
+            "tags": [],
+            "subtasks": []
+          },
+          {
+            "title": "Password reset flows should have rate limiting",
+            "done": false,
+            "hidden": false,
+            "priority": 2,
+            "asvs": "",
+            "desc": "The password reset functionality must enforce **rate limiting** or throttling to prevent abuse. Without rate limiting, an attacker can brute-force reset tokens or mass-enumerate accounts (by checking who gets reset emails) with minimal effort:contentReference[oaicite:7]{index=7}. Rate limiting slows down guessing attacks on reset tokens and also mitigates spam or denial-of-service against the reset function (e.g., preventing thousands of reset emails). The application should limit rapid reset attempts (both by number of requests and by invalid token submissions) and ideally lock or escalate after too many tries.",
+            "tools": "- **Brute-Force Simulation**: Using a tool like **ffuf** or Burp Intruder, attempt multiple reset attempts in quick succession. For example, submit many requests with different guessed tokens or trigger the \"forgot password\" for the same account repeatedly. Observe responses: after a threshold, you should see either a slower response, a CAPTCHA, or a temporary lockout of the function.\n- **Monitor Feedback**: Check if error messages or email behavior changes after many attempts. A secure implementation might stop sending emails or always return a generic response after too many tries, to prevent enumerating which addresses are valid.\n- **Automated Tools**: Tools or scripts (like a custom Python script with threading) can simulate a burst of token submissions. Ensure that after a certain point, further attempts are blocked or delayed. Also verify the user experience: e.g., after 5 failed submissions, maybe the token is invalidated and a new one must be requested.\n- **Proxy/Intercept**: With **Burp Suite** or **OWASP ZAP**, you can intercept a legitimate password reset submission and replay it multiple times quickly (or script it). Check if only the first one works and subsequent are throttled or if responses indicate \"too many attempts\".",
+            "links": "- **OWASP WSTG** – *Testing for Account Lockout and Throttling* (e.g., WSTG-ATHN-03) discusses the need for anti-automation on authentication and similar flows.\n- **NIST 800-63B** – Section 5.2.2 advises rate limiting on authentication attempts and similar actions (like OTP verification), which extends to reset tokens:contentReference[oaicite:8]{index=8}.",
+            "applic": "Applicable to any self-service password reset mechanism. N/A only if the application has no password reset or if resets are handled completely outside the app (and that external system should have its own throttling). In all normal cases where users can attempt resets, the feature should be protected against high-frequency abuse.",
+            "sources": "WSTG-ATHN-09; NIST 800-63B §5.2.2",
+            "tags": [],
+            "subtasks": []
+          },
+          {
+            "title": "Password reset host header poisoning",
+            "done": false,
+            "hidden": false,
+            "priority": 2,
+            "asvs": "",
+            "desc": "Verify that password reset emails or links are not vulnerable to **Host Header poisoning**. The application should not blindly use the HTTP Host header to construct password reset links. If it does, an attacker can forge a request with a malicious Host (or X-Forwarded-Host) value, causing the reset link sent to the user to point to the attacker’s domain:contentReference[oaicite:9]{index=9}:contentReference[oaicite:10]{index=10}. When the user clicks the email link, the attacker’s server receives the token, leading to account takeover. This is a critical issue because it often requires only one crafted request to exploit.",
+            "tools": "- **Host Header Test**: Initiate a password reset for your account but intercept the HTTP request (using **Burp Suite** or **mitmproxy**). Modify the **Host** header (or add **X-Forwarded-Host** if the app is behind a proxy) to an attacker-controlled domain (e.g., your test Collab server or Burp Collaborator). Then allow the request to go through.\n- **Check Email**: Inspect the password reset email you receive. See if the reset URL uses the domain you supplied. If the link contains your malicious domain, the application is vulnerable.\n- **OAST**: Use an out-of-band interaction service (like **Interactsh** or Burp Collaborator) as the host value. When the email is sent and if the link is poisoned, any click on it would direct to your service. Even without a user click, sometimes the token might be sent immediately (not common). Monitor your OAST service for any ping which indicates the token leak.\n- **Automated Scanning**: This issue typically isn’t caught by generic scanners, but some **Nuclei** templates or Burp extensions exist for Host header attacks. Use them as a supplement, but manual verification is key.",
+            "links": "- **OWASP WSTG** – *Testing for Host Header Injection (WSTG-INPV-17)* outlines this attack vector, including its use to manipulate password reset links:contentReference[oaicite:11]{index=11}.\n- **PortSwigger Article** – *Host header attacks* by PortSwigger provides insight into exploiting Host header in password reset emails.",
+            "applic": "Applicable if the application sends password reset emails containing links. Mark N/A only if the app never constructs URLs in emails (for instance, if password resets are entirely manual or out-of-band). If the app is behind a known proxy or uses a fixed base URL, still test this, as misconfigured frameworks might still use the Host header.",
+            "sources": "WSTG-INPV-17; PortSwigger Host Header Attacks",
+            "tags": [],
+            "subtasks": []
+          },
+          {
+            "title": "Insecure password reset flow (e.g. parameter manipulation to another user ID)",
+            "done": false,
+            "hidden": false,
+            "priority": 2,
+            "asvs": "",
+            "desc": "Ensure the password reset process is properly bound to the requesting user and cannot be manipulated to reset someone else’s password. Classic examples include changing a username, user ID, or email parameter in the reset HTTP requests to target another account (an **IDOR/BOLA** issue):contentReference[oaicite:12]{index=12}. If the application only verifies that a reset token is valid but not that it was issued for the specific user, an attacker could supply their own token but another user’s identifier to reset that other user’s password. This would directly lead to account takeover of arbitrary users.",
+            "tools": "- **Parameter Tampering**: When performing a password reset or recovery flow, intercept the relevant requests (with **Burp Proxy**). Look for parameters like user identifiers (username, userId, email) in either the reset request or the confirmation step. Modify these to another valid user's identifier and forward the request.\n- **Observe Response/Outcome**: If you receive a success indication or if the other user’s account is now accessible (password changed), it’s vulnerable. E.g., you might get a reset link for *your* account, but by changing the email parameter to victim’s email on the confirmation step, the victim’s password gets set to what you chose.\n- **Multiple Steps**: If the reset process has multiple steps (like request token then confirm with token and new password), test tampering at each step. For instance, use victim’s username when submitting your token along with a new password.\n- **Automated Tools**: While this is largely manual, extensions like **Autorize** or Burp’s **Infiltrator** can replay requests with changed IDs. Also consider **qsreplace** or similar CLI tools to easily swap parameter values in requests.",
+            "links": "- **OWASP WSTG** – *Testing for Business Logic & IDOR* (Access Control tests) can be applied to the reset flow to ensure no unauthorized changes are possible:contentReference[oaicite:13]{index=13}.\n- **OWASP Cheat Sheet – Forgot Password** – Emphasizes tying reset tokens to specific accounts and sessions, mitigating IDOR issues in reset functionality.",
+            "applic": "Applicable to any multi-step password reset implementation. Mark N/A only if the reset process does not involve user-supplied identifiers at any step (e.g., completely token-driven with no user parameter, which is rare). Otherwise, always verify that resets cannot be redirected to unintended accounts.",
+            "sources": "WSTG-ATHN-09; OWASP Forgot Password CS",
+            "tags": [],
+            "subtasks": []
+          },
+          {
+            "title": "Password reset tokens should not be resuable",
+            "done": false,
+            "hidden": false,
+            "priority": 2,
+            "asvs": "",
+            "desc": "Password reset tokens (or links) must be one-time use. After a token is used to reset a password, it should be immediately invalidated. If tokens are reusable, an attacker who somehow obtained a token (via leaked email, guessing, or a race condition) could use it repeatedly to take over the account even after the user has reset their password:contentReference[oaicite:14]{index=14}. Reusability also allows malicious actors to scour inboxes or logs for old tokens and still reset passwords. Ensuring tokens are invalid after first use (or after a short time window) closes this hole.",
+            "tools": "- **Token Reuse Test**: Perform a password reset on your account. Use the reset token/link once to change your password successfully. Then immediately try to reuse the same token/link again (e.g., click the link again or replay the final POST request with the same token and a new password). The expected result is failure (token invalid or expired). If the second attempt succeeds or the token is still accepted, that’s a vulnerability.\n- **Automate Replay**: Use **Burp Repeater** or a simple script to submit the same token twice in quick succession. For example, intercept the password reset confirmation request and resend it. If the application allows the second submission (perhaps resetting the password to the same or another value again), it indicates token reuse.\n- **Email Inspection**: If the application does not clearly indicate token invalidation, check any user notifications or subsequent behavior. Some secure implementations will render tokens unusable and force reinitiation of the reset flow on any duplicate attempt.\n- **Multiple Sessions**: Try using the token in two different browsers (simulate attacker and victim using it). If both can reset or one resets and the other still can, there’s an issue.",
+            "links": "- **OWASP WSTG** – *Testing for Weak Password Reset* includes verifying that reset links cannot be reused:contentReference[oaicite:15]{index=15}:contentReference[oaicite:16]{index=16}.\n- **NIST SP 800-63B** – Requires one-time use of recovery codes/secrets (one-time passwords should be invalid after use):contentReference[oaicite:17]{index=17}.",
+            "applic": "Applicable to all password reset implementations. Only N/A if the application does not use token-based resets at all. Even if an app uses alternate flows (like administrator resets only), consider how one-time use is ensured. Typically this is always relevant for web apps with self-service password resets.",
+            "sources": "WSTG-ATHN-09; NIST 800-63B §3.1.4",
+            "tags": [],
+            "subtasks": []
+          }
+        ]
       }
     ]
   },
@@ -1707,11 +1797,11 @@
             "hidden": false,
             "priority": 2,
             "asvs": "3.2.1",
-            "desc": "Todo: Description",
-            "tools": "Todo: Tools",
-            "links": "Todo: Links",
-            "applic": "Todo: Applicability",
-            "sources": "Todo: Sources",
+            "desc": "Upon successful login, the application **must issue a brand new session identifier**. If the app continues to use an old session ID that was established pre-login, it opens the door to *session fixation*. An attacker could set a known session ID value (e.g., via a phishing link or a cross-site request) and if the victim logs in and that ID is not changed, the attacker now knows a valid session token for the victim:contentReference[oaicite:21]{index=21}. Regenerating the token on auth ensures that any pre-auth session (which might be known to others) cannot be used to impersonate the user after login.",
+            "tools": "- **Pre/Post Login Comparison**: Using an intercepting proxy (e.g., **Burp Suite** or **OWASP ZAP**), capture the session cookies before and after authentication. Note the session ID (e.g., JSESSIONID, PHPSESSID, etc.) given when you first visit the site or login page. Then log in with valid credentials and observe if a new Set-Cookie with a different session ID is issued. If the session token remains the same, that's a session fixation risk.\n- **Manual Expiration Test**: Also check that the old session (if not rotated) is invalidated. For example, if no new token is set, try using the session in another browser or context prior to login and see if it gains privileges after the user logs in elsewhere.\n- **Automation**: You can use browser devtools as well: open two browser instances (or one normal, one incognito). In one, establish a session (perhaps by hitting the site to get a session cookie), then somehow pass that session cookie to the victim (if simulating attacker controlling a cookie) – e.g., by manually setting it in the other browser. Log in in the victim’s browser and then check in the attacker’s browser if the session now has user privileges. If yes, the token wasn’t rotated.\n- **Tooling**: Burp has a feature to compare cookies over time. The **Sessions** tracer or the extension **AuthMatrix** can help detect if tokens change on privilege level change.",
+            "links": "- **OWASP WSTG** – *Testing for Session Fixation (WSTG-SESS-03)* details this process and the importance of session renewal on login:contentReference[oaicite:22]{index=22}:contentReference[oaicite:23]{index=23}.\n- **OWASP ASVS 4.0** – V3.2.1 specifically requires that the session ID is changed after successful authentication to prevent fixation.",
+            "applic": "Applicable to all web applications with login sessions. Mark N/A only if the application is completely stateless or uses only one-time tokens (no persistent session). Virtually every stateful web app should do this, so it’s rarely N/A.",
+            "sources": "WSTG-SESS-03; ASVS V3.2.1",
             "tags": [
               "Todo: Tags"
             ],
@@ -1847,11 +1937,11 @@
             "hidden": false,
             "priority": 2,
             "asvs": "3.4.1",
-            "desc": "Todo: Description",
-            "tools": "Todo: Tools",
-            "links": "Todo: Links",
-            "applic": "Todo: Applicability",
-            "sources": "Todo: Sources",
+            "desc": "Authentication session cookies must be tagged with **Secure**, meaning they are only ever sent over HTTPS. Without Secure, the browser will send the cookie even over plain HTTP, which could allow an eavesdropper or man-in-the-middle to steal the session token. In modern applications that use HTTPS exclusively, all session cookies should be Secure so that even if a user accidentally visits an http URL, the cookie isn't exposed in transit:contentReference[oaicite:24]{index=24}. This is a basic cookie safety flag to prevent network-level attacks.",
+            "tools": "- **Proxy or Browser Inspection**: After logging in, examine the Set-Cookie header in the HTTP response (using Burp or browser dev tools). Verify that `Secure` is part of the cookie attributes:contentReference[oaicite:25]{index=25}.\n- **Downgrade Attempt**: Try accessing the application via HTTP (if the server permits it). Use a tool like **testssl.sh** or simply `curl` to simulate an http request. The cookie should ideally not be sent (modern browsers won't send it if Secure). If the application does allow HTTP, check if the cookie gets transmitted – if so, it's a serious issue.\n- **Configuration Review**: Not directly possible in blackbox, but if the site has a known cookie policy (like a /cookie page or headers), ensure Secure is mentioned for session cookies. Using **Nikto** or **Arachni** scanners can also flag cookies without Secure flag as a finding.",
+            "links": "- **OWASP WSTG** – *Testing for Cookies Attributes (WSTG-SESS-02)* covers checking Secure flag on cookies:contentReference[oaicite:26]{index=26}.\n- **RFC 6265** – The cookie specification which outlines the Secure attribute and its importance in Section 4.1.2.5.",
+            "applic": "Applicable whenever cookies are used for session/auth. Mark N/A only if the application truly does not use cookies for anything sensitive (e.g., a pure token-in-header API with no cookies at all). If the app uses exclusively another mechanism (like HTML5 storage + Auth header) and no cookies, this specific test is N/A, otherwise it is required.",
+            "sources": "WSTG-SESS-02; RFC 6265",
             "tags": [
               "Todo: Tags"
             ],
@@ -1863,11 +1953,11 @@
             "hidden": false,
             "priority": 2,
             "asvs": "3.4.2",
-            "desc": "Todo: Description",
-            "tools": "Todo: Tools",
-            "links": "Todo: Links",
-            "applic": "Todo: Applicability",
-            "sources": "Todo: Sources",
+            "desc": "Session cookies should be marked **HttpOnly** to mitigate the risk of client-side scripts (like injected JavaScript via XSS) accessing them. HttpOnly instructs browsers to not make the cookie accessible via `document.cookie`. Without this flag, if an XSS vulnerability exists anywhere in the application, an attacker could script to steal the session token directly, escalating a simple XSS into full account compromise:contentReference[oaicite:27]{index=27}. HttpOnly is a defense-in-depth flag that significantly reduces the impact of XSS on session confidentiality.",
+            "tools": "- **Check Set-Cookie**: After authentication, inspect the Set-Cookie header for the session token. Confirm that `HttpOnly` is present:contentReference[oaicite:28]{index=28}.\n- **XSS Simulation**: If you have the ability to inject JavaScript in your own session (e.g., through a test page or browser console), attempt `console.log(document.cookie)` or similar in the context of the application. If the session cookie is properly HttpOnly, it will not appear in the output. (Be careful: do not actually exploit any real XSS in production; this is just a theoretical check in a safe environment.)\n- **Automated Scan**: Security scanners (ZAP, Burp) flag missing HttpOnly cookies. For instance, run **OWASP ZAP** baseline scan; it will list cookies without HttpOnly in the report. Alternatively, **Nuclei** has templates (in the \"misconfiguration\" category) that detect missing HttpOnly on sensitive cookies.",
+            "links": "- **OWASP WSTG** – *Testing for Cookies Attributes (WSTG-SESS-02)* also covers HttpOnly flag verification:contentReference[oaicite:29]{index=29}.\n- **MDN Web Docs** – *HttpOnly* attribute documentation explains how it works and why it should be used for session cookies.",
+            "applic": "Applicable to all session cookies. Mark N/A only if the application does not use cookies at all (or does not use them for authentication). Any cookie carrying session or sensitive info should have HttpOnly; if the app purposely needs client-side script access to a cookie (unusual for session tokens), that's a design flaw more than a case for N/A.",
+            "sources": "WSTG-SESS-02; MDN Cookie Security",
             "tags": [
               "Todo: Tags"
             ],
@@ -1879,11 +1969,11 @@
             "hidden": false,
             "priority": 2,
             "asvs": "3.4.3",
-            "desc": "Todo: Description",
-            "tools": "Todo: Tools",
-            "links": "Todo: Links",
-            "applic": "Todo: Applicability",
-            "sources": "Todo: Sources",
+            "desc": "**SameSite** on cookies restricts them from being sent in cross-site contexts (depending on the mode: Lax or Strict) and thus provides a layer of CSRF defense. Session cookies should ideally be set with SameSite=Lax or Strict, unless cross-site requests are absolutely needed (which is rare for auth cookies). Without SameSite, the cookie will be sent on cross-origin requests, meaning a malicious website could potentially force a victim's browser to send their session cookie to the target app (CSRF attack). Ensuring a SameSite attribute (especially in modern browsers that default to Lax if none) helps mitigate CSRF by default:contentReference[oaicite:30]{index=30}.",
+            "tools": "- **Cookie Inspection**: After logging in, verify the presence of `SameSite` in the Set-Cookie header for the session cookie:contentReference[oaicite:31]{index=31}. It might be \"Lax\" (commonly default now) or \"Strict\". \"None\" is only valid if Secure is also set (and indicates cross-site allowed). If there's no SameSite attribute at all, that's a finding (though note some modern browsers will treat it as Lax if missing, it's still best practice to declare it).\n- **CSRF Test**: As a secondary check, attempt a basic CSRF: e.g., if the app has a state-changing action (like changing profile info), try to trigger that action via a cross-domain request (such as an HTML form on a different domain). If the session cookie is not SameSite and no other CSRF protections exist, the action might succeed. If SameSite is properly set to Lax or Strict, and if the action is not top-level navigation, the cookie likely won't be sent and the action will fail.\n- **Browser Developer Tools**: Many browsers list the SameSite value in storage view (e.g., Chrome DevTools Application tab will show \"SameSite\" for each cookie). Check there as well.",
+            "links": "- **OWASP WSTG** – *Testing for Cookies Attributes* includes checking SameSite flag:contentReference[oaicite:32]{index=32}.\n- **OWASP Cheat Sheet – CSRF Prevention** – Recommends using SameSite cookies as a defense measure (though not solely relied upon).",
+            "applic": "Applicable whenever cookies are used. Mark N/A if the application does not use cookies for session management at all. In cases of pure API with token auth and no cookies, this is N/A. Otherwise, any web session cookie benefits from SameSite, even if other CSRF defenses exist.",
+            "sources": "WSTG-SESS-02; OWASP CSRF Cheat Sheet",
             "tags": [
               "Todo: Tags"
             ],
@@ -1895,11 +1985,11 @@
             "hidden": false,
             "priority": 2,
             "asvs": "3.4.4",
-            "desc": "Todo: Description",
-            "tools": "Todo: Tools",
-            "links": "Todo: Links",
-            "applic": "Todo: Applicability",
-            "sources": "Todo: Sources",
+            "desc": "Using the `__Host-` prefix on a cookie name (e.g., `Set-Cookie: __Host-session=...`) is a best practice that adds security. The browser enforces that any cookie starting with `__Host-` must be Secure, have Path=/, and no Domain attribute (meaning it’s tied to the host exactly). This prevents misconfigurations like setting cookies on a parent domain or a sub-path. If feasible, session cookies should use this prefix, as it ensures the cookie cannot be spoofed or used in a broader scope than intended:contentReference[oaicite:33]{index=33}. It basically locks the cookie to the exact site, reducing risk of conflicts or malicious subdomain cookie injection.",
+            "tools": "- **Observation**: Check the cookie name. If it begins with `__Host-`, verify that the cookie indeed has Secure and no Domain attribute (browsers should enforce this, but double-check in the Set-Cookie header or via devtools). If the cookie is not using __Host prefix, determine if the app sets a Domain attribute on the cookie.\n- **Subdomain Test**: If the app doesn’t use __Host prefix, and sets a Domain (like `.example.com`), consider the implications: any subdomain could potentially set a cookie that overrides the main domain’s session. If possible, test on a subdomain (or simulate via browser cookie editing) to see if you can inject a cookie for the parent domain. __Host- prefix usage would prevent that.\n- **No Domain/Path enforcement**: If not using __Host, ensure at least that the Domain is scoped appropriately (preferably not set at all if site is single domain) and Path is `/` for session cookies. Many frameworks don’t yet use __Host by default, so not having it is common, but using it is defense-in-depth.",
+            "links": "- **OWASP WSTG** – *Testing for Cookies Attributes* notes the use of cookie prefixes like __Host- for hardening:contentReference[oaicite:34]{index=34}.\n- **Mozilla Developer Docs** – *Cookie Prefixes* explains the __Host- prefix requirements and benefits for cookie security.",
+            "applic": "Applicable to cookies in modern browsers. If the target user base includes older browsers that don’t support cookie prefixes, the benefit is reduced but not harmful. Mark N/A only if the application doesn’t use cookies or if it’s on a multi-tenant domain where __Host- can’t be used (though that’s rare). Generally, this is a recommended practice for any single-domain application.",
+            "sources": "WSTG-SESS-02; MDN Cookie Prefixes",
             "tags": [
               "Todo: Tags"
             ],
@@ -1911,11 +2001,11 @@
             "hidden": false,
             "priority": 2,
             "asvs": "3.4.5",
-            "desc": "Todo: Description",
-            "tools": "Todo: Tools",
-            "links": "Todo: Links",
-            "applic": "Todo: Applicability",
-            "sources": "Todo: Sources",
+            "desc": "If multiple applications share a common parent domain, cookies should be scoped narrowly by Path to avoid unintended access. For example, if `app1` and `app2` are both on `example.com`, a session cookie for `app1` should use `Path=/app1/` (or a unique path) so that it’s not sent to `app2` routes. Without proper Path scoping, cookies might bleed into other contexts or applications on the same domain, potentially causing security or session mix-up issues:contentReference[oaicite:35]{index=35}. In single-app scenarios (or if using `__Host-` prefix), Path is typically `/` (since no other apps to isolate from), which is fine. But in a shared environment, distinct Path helps isolate session scope.",
+            "tools": "- **Review Cookie Attributes**: Examine the Path attribute on the session cookie. If the application is served from a sub-path (e.g., `https://example.com/app1`), ensure the cookie’s Path is \"/app1\" rather than \"/\". This can be seen in Set-Cookie or browser storage.\n- **Cross-App Test**: If you have access to another app on the same base domain, log into one app and then see if the session cookie is sent when browsing the other app. If yes and they are unrelated, that’s a problem. Also consider if a subdomain scenario exists (though Path won’t protect across subdomains – that needs Domain scoping or __Host prefix with no Domain). This item is mainly about same-domain different URIs.\n- **Configuration Inquiry**: Sometimes documentation will specify if the application sets a Path. If none is set, default is \"/\" which means entire domain. In a multi-app domain, try to get each app to set narrower paths for their cookies. Use **cURL** or **browser devtools** to inspect cookies from each app context to confirm separation.",
+            "links": "- **RFC 6265** – Describes Path attribute usage; setting Path correctly is important to limit cookie scope.\n- **OWASP Cheat Sheet – Session Management** – Advises narrowing cookie scope (domain and path) to the least required, especially when multiple apps share infrastructure.",
+            "applic": "Relevant if multiple applications or contexts run under the same domain. N/A for single application domains or if the app uses unique hostnames for each component. Essentially, if there’s no other app or path to worry about, this is less of a concern (though good practice regardless).",
+            "sources": "RFC 6265; OWASP Session Management CS",
             "tags": [
               "Todo: Tags"
             ],
@@ -1933,11 +2023,11 @@
             "hidden": false,
             "priority": 2,
             "asvs": "3.5.1",
-            "desc": "Todo: Description",
-            "tools": "Todo: Tools",
-            "links": "Todo: Links",
-            "applic": "Todo: Applicability",
-            "sources": "Todo: Sources",
+            "desc": "Todo: Description\n\nIf the application issues OAuth access tokens (for example, to third-party integrations or mobile apps), users should have the ability to revoke those tokens. Without a revocation mechanism, a compromised token could remain active until its natural expiration (which might be very long or never, in case of \"offline\" refresh tokens). Revocation is critical to contain damage from leaked tokens – it’s akin to a logout for API keys. Ideally, the app provides a UI (or at least an API endpoint) where users or admins can view active OAuth tokens/consents and revoke them:contentReference[oaicite:43]{index=43}. Lack of this feature means once issued, a token is valid until expiry or manual database action, which is a security risk if a token leaks.",
+            "tools": "Todo: Tools\n\n- **User Interface**: Check the account settings or connected applications section for a list of authorized applications or tokens. For instance, some apps have a \"Connected Apps\" or \"API Tokens\" page. Verify that there's a way to delete/revoke individual tokens or all tokens. If such a list exists, test revoking one and ensure it actually invalidates access (if possible, by attempting to use the token afterward via API).\n- **API Testing**: If no UI is present, see if the application backend exposes a revocation endpoint (common in OAuth 2.0 is an RFC 7009 token revocation endpoint). You can attempt an HTTP call to `/oauth/revoke` or similar with a token. A successful revocation call should render that token unusable.\n- **Token Usage Test**: Obtain an OAuth access token (through normal auth or intercept). Then call the appropriate API with it to confirm it's working. Next, perform the revocation (via UI or endpoint). Then attempt the same API call with the now-revoked token. It should fail (HTTP 401/invalid token). If it still succeeds, revocation didn’t truly invalidate the token.\n- **Multiple Token Management**: If the app allows multiple active tokens (e.g., multiple device logins), check whether revoking one affects the others or only the targeted token. Typically, each token is independent and revoking one shouldn’t kill all tokens (unless that’s the intended design).",
+            "links": "Todo: Links\n\n- **RFC 7009** – OAuth 2.0 Token Revocation specification, which outlines how tokens should be revocable at an endpoint.\n- **OWASP ASVS 4.0** – V3.5.1: Requires that users can revoke trust/access tokens that are issued for their account, aligning with this control.",
+            "applic": "Todo: Applicability\n\nApplicable if the application issues OAuth/OIDC tokens or API keys that live beyond a session. N/A if the app does not use any token-based auth (other than the normal session cookie) – for example, purely web app with no API tokens. If using third-party OAuth (like \"Login with Google\") solely, then token revocation may be handled on the IdP side (so this would be N/A for the app itself).",
+            "sources": "Todo: Sources\n\nRFC 7009; ASVS V3.5.1",
             "tags": [
               "Todo: Tags"
             ],
@@ -1949,11 +2039,11 @@
             "hidden": false,
             "priority": 2,
             "asvs": "3.5.2",
-            "desc": "Todo: Description",
-            "tools": "Todo: Tools",
-            "links": "Todo: Links",
-            "applic": "Todo: Applicability",
-            "sources": "Todo: Sources",
+            "desc": "For user interactions and integrations, short-lived session tokens (that can be rotated or expire) are preferred over static API keys or secrets. Static API keys (especially if embedded in client apps or shared) are high risk because if leaked, they are valid until manually changed. They often have broad or never-expiring access. The application should avoid designs where long-term secrets are the primary auth mechanism for users. Instead, use tokens that can be scoped and expire:contentReference[oaicite:45]{index=45}. If static keys are used (e.g., for API access), the app should enforce regular rotation and minimal privileges.",
+            "tools": "- **Inspect API Patterns**: If the application provides an API or integration, see how clients authenticate. For example, if mobile or frontend JavaScript is using an API key in calls, check if that key is basically a static string. If yes, consider that a design issue. It's safer if they use OAuth access tokens or similar ephemeral tokens.\n- **Developer Documentation**: If available, read any API documentation. Look for mentions of API keys, how they are used, and whether they can be regenerated or expire. If keys are permanent and used in place of sessions, it's a sign of weaker practice.\n- **Configuration/Usage**: Try to sign up for an API key (if the app offers it). Observe if the key has an obvious expiration or if there's a way to revoke/regenerate it. If the UI says \"here is your API key, keep it secret, you can regenerate it manually\", that implies it's static until regeneration – note that as a risk if no expiration.\n- **Testing**: Not a typical dynamic test, but if you have a static key, you could try using it after a long period of inactivity to see if it ever times out. Likely, it will work indefinitely if static. Also test if the key can access all user functions or is limited in scope. Unlimited, never-expiring keys are what this item warns about.",
+            "links": "- **OWASP ASVS 4.0** – V3.5.2: Advises against long-term static secrets for session management, recommending short-lived tokens.\n- **OAuth 2.0** – The framework itself is an example of using expiring access tokens instead of permanent credentials; many modern designs follow this for user-to-API interactions.",
+            "applic": "Relevant for applications offering programmatic access or using API keys. N/A for purely interactive web apps with no API or integration features. If the app only uses standard web sessions and no API keys, this isn’t applicable. However, many modern apps have some API – ensure they use proper tokens.",
+            "sources": "ASVS V3.5.2; OAuth2 Best Practices",
             "tags": [
               "Todo: Tags"
             ],
@@ -1965,11 +2055,11 @@
             "hidden": false,
             "priority": 2,
             "asvs": "3.5.3",
-            "desc": "Todo: Description",
-            "tools": "Todo: Tools",
-            "links": "Todo: Links",
-            "applic": "Todo: Applicability",
-            "sources": "Todo: Sources",
+            "desc": "If the application uses stateless tokens (such as JWTs) for session management, those tokens must be integrity-protected (signed or encrypted). An unsigned or weakly signed token means an attacker could modify the token (e.g., elevate privileges by changing a user role claim) and the server would accept it, leading to privilege escalation:contentReference[oaicite:46]{index=46}. Similarly, tokens should be non-forgeable and, if sensitive data is in them, encrypted. Replay is addressed by having short expiration times and possibly jti (unique IDs) with server-side blacklist on logout. Essentially, verify that tokens cannot be arbitrarily changed by the client and that the server validates them correctly.",
+            "tools": "- **JWT Tampering Test**: If JWTs or similar tokens are used, use a tool like **Burp JWT Editor** or **jwt-cli** to modify fields. For instance, change the `alg` to \"none\" (if the token is a JWT) and remove the signature, or change a claim (like your user ID or role) and re-sign with a bogus key. Attempt to use the modified token. The server should reject it (invalid signature or token).\n- **Signature Algorithm Check**: Inspect the token header (for JWT). If the algorithm is \"none\" or a non-cryptographic algorithm, that's a severe flaw. If it's something weak (like HS256 when better could be used, or using a public key algorithm incorrectly), note that. Use **JOSE lint** or **jwt.io** to analyze token structure if needed (in a safe environment, not disclosing secrets publicly).\n- **Replay Consideration**: This is harder to test, but ensure tokens have an `exp` (expiry) claim that is reasonably short. If you can, use the token after its expiration to confirm it’s rejected. Also check if the token has a `jti` or similar unique identifier claim – though without access to server, you can't confirm if jti is stored. Still, short expiration mitigates replay mostly. If the token never expires and there's no server tracking, that's a risk: stolen tokens could be used indefinitely.\n- **Examine Token Contents**: If the token contains sensitive data (like cleartext PII or passwords), ensure it’s at least encrypted (e.g., a JWE, not just a JWS). This is more a design aspect: ideally, sensitive info shouldn’t be in the token or should be encrypted if so.",
+            "links": "- **OWASP WSTG** – *Testing for JWT security (WSTG-SESS-10)* describes verifying the signature and integrity of JSON Web Tokens:contentReference[oaicite:47]{index=47}:contentReference[oaicite:48]{index=48}.\n- **OWASP JWT Cheat Sheet** – Covers common vulnerabilities like alg=none, weak keys, lack of signature verification, and how to properly implement signed/encrypted JWTs.",
+            "applic": "Applicable if stateless/session tokens like JWT are in use. N/A if the app uses only server-side sessions (cookies) or no tokens. If using JWT/OAuth tokens for user sessions or API auth, this check is critical.",
+            "sources": "WSTG-SESS-10; OWASP JWT Cheat Sheet",
             "tags": [
               "Todo: Tags"
             ],
@@ -2025,14 +2115,28 @@
             "hidden": false,
             "priority": 2,
             "asvs": "3.6.2",
-            "desc": "Todo: Description",
-            "tools": "Todo: Tools",
-            "links": "Todo: Links",
-            "applic": "Todo: Applicability",
-            "sources": "Todo: Sources",
+            "desc": "The Identity Provider (Credential Service Provider) should communicate to the Relying Party the time of the user’s last authentication. This allows the RP to decide if it needs to prompt for re-authentication. For instance, in SAML this could be the AuthnStatement with AuthnInstant, or in OIDC the `auth_time` claim in the ID token. Ensuring this information is passed and checked adds security – the RP can implement policies like \"if last auth was more than X minutes ago, force login again.\" If the CSP fails to provide this, or the RP ignores it, there’s a risk that an old, potentially unattended session at the IdP could be used to get into the RP without the user actually re-entering credentials recently.",
+            "tools": "- **SAML Trace**: If using SAML, capture the SAML Response (using a browser plugin). Look at the `<AuthnStatement AuthnInstant=\"...\">` value. Verify that it’s present and that the RP could use it. There’s no direct action by the user here, but absence of this in the assertion might mean the IdP isn't informing of auth time (which is unusual as it’s standard).\n- **OIDC Token**: If using OIDC, decode the ID token (JWT). Check for an `auth_time` claim. If it’s missing, that’s a sign the IdP didn't include it (unless max_age was not requested; auth_time is usually present if requested by RP). If present, see if the RP uses it (hard to tell externally, but one clue: if `auth_time` is far in the past and the RP still logs you in without asking for fresh login, the RP might be ignoring it).\n- **Behavioral**: Similar to above, attempt to access after a long time. If IdP does not supply auth time and RP isn't forcing login on their own, you might be logged straight in. This overlaps with the previous check.\n- **Review**: Check any security architecture docs if available (sometimes apps have documentation for SSO config). Look for settings related to \"forceAuthn\" or \"auth_time\" processing on the RP side.",
+            "links": "- **OWASP ASVS 4.0** – V3.6.2 suggests that IdPs should provide the last authentication time in assertions and that RPs use that info to make decisions.\n- **SAML 2.0 Core** – Section on AuthnStatement covers including authentication timestamps in SAML assertions.",
+            "applic": "Applicable in federated auth scenarios. N/A for apps with local auth only. In practice, most standard IdPs do provide this info, so the focus is on whether the RP leverages it. Lack of using it ties back to the prior control (max auth time enforcement).",
+            "sources": "ASVS V3.6.2; SAML2 Core Spec",
             "tags": [
               "Todo: Tags"
             ],
+            "subtasks": []
+          },
+          {
+            "title": "Relaying parties should specify maximum authentication time to Credential Service Providers and should re-authenticate the user if they haven't used a session within that period",
+            "done": false,
+            "hidden": false,
+            "priority": 2,
+            "asvs": "",
+            "desc": "In federated login setups (e.g., SSO via SAML or OIDC), the relying party (the application) should request re-authentication from the identity provider if the user's last login at the IdP exceeds a certain threshold (for example, user hasn’t logged in at IdP in the last 12 hours). This is often implemented via parameters like OIDC’s `max_age` or SAML’s `ForceAuthn`. Without this, a user could stay technically \"logged in\" at the IdP for a very long time, and an attacker who hijacks a long-lived IdP session could SSO into the RP without forcing the user to enter credentials again:contentReference[oaicite:53]{index=53}. By enforcing a maximum authentication age, the RP ensures sensitive or high-value actions require a fresh login, mitigating risks of IdP session abuse.",
+            "tools": "- **SSO Parameter Inspection**: During the federated login redirect (when the app sends you to the IdP), look at the URL parameters. For OIDC, check if `max_age` is included in the auth request. For SAML, it’s harder to see without decoding the SAML request, but some tooling (like SAML Tracer in Firefox) can show if `ForceAuthn=true`.\n- **Test Scenario**: If possible, simulate an idle period: log into the IdP directly, wait longer than the supposed policy time (say, 30 minutes), then access the RP. If the RP is configured correctly, it will ask the IdP to prompt for credentials again (you should see a login prompt at the IdP even though you have an existing session). If you do not see a prompt and get logged in silently, the RP might not be enforcing re-auth.\n- **High-Risk Action**: Some RPs only require re-auth for certain actions. Try performing a sensitive action (like changing password or transferring money) after a long IdP session age. If implemented, the app might redirect to IdP for fresh login at that point.\n- **DevTools/Network**: Use network logs or SSO tracer tools to see assertions. A SAML Response might include an AuthnInstant timestamp – see if the application or IdP communicates any enforcement of auth time. Without direct access, the above behavior tests are more practical.",
+            "links": "- **OIDC Specification** – Mentions the `max_age` parameter which RPs can use to demand recent auth.\n- **OWASP ASVS 4.0** – V3.6.1 addresses federation re-auth, requiring RPs to set a max auth age and IdPs to honor it:contentReference[oaicite:54]{index=54}.",
+            "applic": "Applicable only if the application uses federated identity (SSO). N/A for local login apps. If SSO is used, this is important for security-sensitive applications (banks, etc.). If the IdP is completely external and RP has no say, it might be beyond the app’s control (still, best practice to configure if possible).",
+            "sources": "ASVS V3.6.1; OIDC Core Spec",
+            "tags": [],
             "subtasks": []
           }
         ]
@@ -2056,6 +2160,325 @@
               "Todo: Tags"
             ],
             "subtasks": []
+          }
+        ]
+      },
+      {
+        "name": "Session token & cookie configuration",
+        "notes": "",
+        "items": [
+          {
+            "title": "Cookie attributes & scoping (Secure, HttpOnly, SameSite, Path/Domain, __Host-/__Secure-)",
+            "done": false,
+            "hidden": false,
+            "priority": 3,
+            "asvs": "ASVS v5 V3.3 Cookie Setup; V7.* session protections",
+            "desc": "Ensure session cookies are set with Secure and HttpOnly, use an appropriate SameSite policy (Strict/Lax for browser-based sessions; None only when cross-site flows are strictly required and TLS is enforced), and are narrowly scoped by Path/Domain. Prefer __Host- cookies (no Domain, Path=/, Secure) to prevent subdomain abuse. Session identifiers must not be set/read via JavaScript unless there is a compelling, documented reason.",
+            "tools": "Burp Proxy (inspect Set-Cookie); Chrome/Firefox DevTools (Application/Storage → Cookies); ZAP HUD; Nuclei templates (cookie flags);",
+            "links": "https://owasp.org/www-project-web-security-testing-guide/stable/4-Web_Application_Security_Testing/06-Session_Management_Testing/02-Testing_for_Cookies_Attributes;https://developer.mozilla.org/en-US/docs/Web/Security/Practical_implementation_guides/Cookies;https://scotthelme.co.uk/content/files/2025/06/OWASP_Application_Security_Verification_Standard_5.0.0_en.pdf",
+            "applic": "N/A if the application is strictly token-in-header (Authorization: Bearer) with no cookies set by the app AND CORS is locked down (no credentialed cross-site requests). Otherwise applicable.",
+            "sources": "WSTG-SESS-02; MDN Cookie Security; ASVS 5.0 cookie setup guidance",
+            "tags": [
+              "session",
+              "cookies",
+              "browser",
+              "burp",
+              "zap",
+              "wstg"
+            ],
+            "subtasks": [
+              "Log in and capture responses; record all Set-Cookie attributes (name/value truncated, Secure/HttpOnly/SameSite/Path/Domain).",
+              "Verify SameSite behavior by issuing a cross-site request (different Origin) and observing whether cookies are sent.",
+              "Confirm no session cookies are set via document.cookie; if they are, justify and document.",
+              "Prefer __Host- prefix for primary session cookie (Path=/, no Domain, Secure).",
+              "Flag any cookie without Secure/HttpOnly, or with overly broad Domain/Path."
+            ]
+          },
+          {
+            "title": "No session tokens in URLs/HTML/storage; prevent leakage via caching and referrers",
+            "done": false,
+            "hidden": false,
+            "priority": 3,
+            "asvs": "ASVS v5 V7 (session safety) & V3 (frontend cache controls)",
+            "desc": "Session IDs must never appear in URLs, HTML, logs, or client storage where they can leak via Referer headers, browser history, or shared caches. Responses containing secrets should be served with appropriate cache controls (e.g., Cache-Control: no-store).",
+            "tools": "Burp (Proxy/Logger → search for session values); ZAP; Grep server logs for patterns;",
+            "links": "https://owasp.org/www-project-web-security-testing-guide/stable/4-Web_Application_Security_Testing/06-Session_Management_Testing/04-Testing_for_Exposed_Session_Variables;https://owasp.org/www-project-web-security-testing-guide/stable/",
+            "applic": "Applicable to all web apps with sessions; N/A only if the app is fully stateless and never issues or persists any session/token-like values.",
+            "sources": "WSTG-SESS-04; WSTG stable index",
+            "tags": [
+              "session",
+              "cookies",
+              "cache",
+              "referrer",
+              "logging"
+            ],
+            "subtasks": [
+              "Search Proxy/HTTP history and DOM for token patterns (session IDs, JWTs).",
+              "Check response headers for Cache-Control: no-store and Pragma: no-cache where appropriate.",
+              "Verify session identifiers do not appear in links, redirects, or error pages."
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Session identifier strength & rotation",
+        "notes": "",
+        "items": [
+          {
+            "title": "Token randomness (analyze with Burp Sequencer)",
+            "done": false,
+            "hidden": false,
+            "priority": 2,
+            "asvs": "ASVS v5 V7.* Token strength/randomness",
+            "desc": "Session identifiers (or any security tokens like CSRF tokens, password reset tokens, etc.) should be sufficiently random (usually at least 128 bits of entropy). If tokens are generated with poor randomness or too short, they could be predicted by attackers:contentReference[oaicite:64]{index=64}:contentReference[oaicite:65]{index=65}. Testing token randomness involves gathering a large sample and performing statistical tests. A predictable pattern or low entropy could allow an attacker to guess another user’s session ID or other tokens and hijack their session. Ensuring cryptographically secure PRNGs and enough length mitigates this risk.",
+            "tools": "- **Burp Suite Sequencer**: The go-to tool for analyzing session token randomness. Configure Burp to capture a series of session tokens (e.g., by repeatedly hitting the login page or an endpoint that issues new session IDs). Feed these tokens into Sequencer and let it perform its entropy analysis. It will provide a randomness quality report. Look for high confidence that the tokens are random. If Sequencer flags \"high probability of bias\" or low entropy, that indicates an issue.\n- **Custom Script**: Alternatively, write a script to fetch, say, 1000 session tokens from the application (if possible without full login each time, perhaps hitting an endpoint that generates session or using a fast re-login script). Then use statistical tests or a tool like `ent` or `dieharder` on the collected data. This is more involved; Burp is simpler.\n- **Visual Inspection**: Sometimes even a quick look at tokens can reveal issues: e.g., if they are short (like 8 characters), or if you notice the same prefix in all tokens, or incremental values. Such patterns can hint at problems even before formal analysis.\n- **Check Implementation Details** (if known): If the app uses JWTs as session tokens, the randomness comes from the signing key, not the token string itself. For classic cookies, it’s whatever session mechanism (e.g., JSESSIONID). If default session IDs from frameworks are used, they’re usually okay, but older or custom implementations might be weak. Use the above techniques to confirm.",
+            "links": "https://portswigger.net/burp/documentation/desktop/testing-workflow/session-management/analyzing-session-token-generation;https://portswigger.net/burp/documentation/desktop/tools/sequencer",
+            "applic": "Applicable when the app issues tokens (cookies, anti-CSRF tokens, password-reset tokens). N/A for systems that do not issue session-like values.\n\nApplicable to any application issuing tokens or sessions. N/A only if there is literally no token or session (very rare for a web app). Even APIs have tokens that should be random. So basically always applicable.",
+            "sources": "PortSwigger Sequencer docs; NIST 800-63B guidance",
+            "tags": [
+              "session",
+              "entropy",
+              "burp",
+              "sequencer"
+            ],
+            "subtasks": [
+              "Send the Set-Cookie response to Sequencer and start live capture.",
+              "Collect a statistically significant sample; run analysis and review test p-values.",
+              "If patterns/low entropy appear, recommend cryptographically secure RNGs and longer identifiers."
+            ]
+          },
+          {
+            "title": "Session fixation resistance (rotate on auth & privilege change)",
+            "done": false,
+            "hidden": false,
+            "priority": 3,
+            "asvs": "ASVS v5 V7.2 (token issuance/rotation on auth)",
+            "desc": "A new session identifier MUST be issued after successful authentication and on privilege elevation to prevent fixation and privilege splicing.",
+            "tools": "Burp (Proxy/Comparer) to confirm cookie value changes at login and after role change.",
+            "links": "https://owasp.org/www-project-web-security-testing-guide/v41/4-Web_Application_Security_Testing/06-Session_Management_Testing/03-Testing_for_Session_Fixation;https://scotthelme.co.uk/content/files/2025/06/OWASP_Application_Security_Verification_Standard_5.0.0_en.pdf",
+            "applic": "Applicable to any authenticated experience.",
+            "sources": "WSTG-SESS-03; ASVS 5.0",
+            "tags": [
+              "session",
+              "rotation",
+              "fixation",
+              "burp",
+              "wstg"
+            ],
+            "subtasks": [
+              "Capture pre-auth session cookie; authenticate; confirm a new cookie value is set.",
+              "Trigger a privilege change (e.g., enable admin mode) and verify rotation again.",
+              "Ensure old tokens are invalidated server-side."
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Lifecycle & termination",
+        "notes": "",
+        "items": [
+          {
+            "title": "Logout invalidation (server-side) & single sign-out",
+            "done": false,
+            "hidden": false,
+            "priority": 2,
+            "asvs": "ASVS v5 V7.4 (termination)",
+            "desc": "Logging out should immediately invalidate the user’s session on the server. That means any session token (cookie or token) should be unusable after logout. If logout is not properly handled, an attacker who steals a token (or a user who forgets to log out on a shared machine) could reuse that token to continue the session:contentReference[oaicite:36]{index=36}:contentReference[oaicite:37]{index=37}. Additionally, in environments with multiple related services (single sign-on), logging out of one should log the user out of the others (“single sign-out”) or at least communicate logout to the identity provider. Without single sign-out, a user might think they logged off entirely, while tokens at other integrated services remain active.",
+            "tools": "- **Token Reuse Test**: Log in and then explicitly log out from the application. After logout, take the previously valid session cookie or token and attempt to use it on a privileged endpoint (e.g., access a user profile or perform an action via **Burp Repeater**). The request should be rejected (HTTP 401/403 or redirect to login). If the request still succeeds, the session token was not invalidated server-side.\n- **Multiple Device Test**: Log in on two separate devices or browsers. Perform a logout on one. Then check the other: attempt to navigate or perform actions with the other session. Ideally, the other session should also be invalidated (especially if the application does not support concurrent sessions). If the other remains active, it suggests no global logout (which might be okay if multiple sessions are allowed, but the user should have an option to terminate them).\n- **SSO Environment**: If the app uses federated identity, log out from the application and see if it also logs you out from the central IdP (or vice versa). For instance, in SAML/OIDC setups, test that logging out of the SP triggers IdP logout or that a user returning to the SP is not still considered authenticated without re-login.\n- **Burp CSRF PoC**: Use Burp’s CSRF PoC generator to create a logout request (if it’s a GET or simple POST) and see if any CSRF or other trick could silently log a user out or not. This is less critical than ensuring invalidation but good to know if logout could be forced by an attacker (though usually not a major issue).",
+            "links": "- **OWASP WSTG** – *Testing for Logout Functionality (WSTG-SESS-06)* describes validating that sessions are terminated on logout:contentReference[oaicite:38]{index=38}.\n- **OWASP ASVS 4.0** – V3.3.1 & V3.4 cover session invalidation and require that logout and other session terminations invalidate the session on server and optionally on client.",
+            "applic": "Applicable to all applications with sessions. N/A only if the app has no concept of a user session (stateless APIs). If multiple subsystems are involved (SSO), single sign-out should be considered; if the app is standalone, single sign-out is not applicable (just normal logout).",
+            "sources": "WSTG-SESS-06; ASVS V3.3, V7.4",
+            "tags": [
+              "session",
+              "logout",
+              "invalidate",
+              "burp",
+              "wstg"
+            ],
+            "subtasks": [
+              "Log in, capture session cookie; log out; replay a previously valid request with the old cookie (expect 401/redirect to login).",
+              "If using SSO, verify single sign-out across relying parties."
+            ]
+          },
+          {
+            "title": "Idle & absolute timeouts",
+            "done": false,
+            "hidden": false,
+            "priority": 2,
+            "asvs": "ASVS v5 V7.3 (expiration/timeouts)",
+            "desc": "Sessions should automatically expire after a period of inactivity (idle timeout) and have a maximum lifespan regardless of activity (absolute timeout):contentReference[oaicite:39]{index=39}. Idle timeout (e.g., 15-30 minutes of no requests) limits the window for an attacker to hijack an unattended session. Absolute timeout (e.g., 8-24 hours) forces re-authentication eventually even if continuous activity, limiting long-term abuse of a stolen token. Without these, a session could potentially last forever unless the user logs out, increasing the risk from stolen or forgotten sessions.",
+            "tools": "- **Idle Timeout Test**: Log in and then stop using the app. Wait for a specified idle period (for test, maybe 5-10 minutes if you suspect a short timeout, or check documentation for expected value). After waiting, try to perform an action. If you are properly logged out (prompted to login again), the idle timeout works. If you remain logged in even after an extended period of inactivity, that suggests no idle timeout or one set too long. You can script this with **Selenium** or a simple loop that waits and then attempts an action.\n- **Absolute Timeout Test**: Note the login time. Remain active on the app for an extended period (or simulate activity by periodically making requests). See if at some point you are forced to log in again even if continuously active. This can be hard to test manually if the absolute timeout is long (many hours). Sometimes it's easier to find references in responses (some apps send a session expiration timestamp in a cookie or hidden field). Alternatively, check the session cookie for an expiry attribute if it's not session-only; a set expiry could indicate absolute timeout.\n- **Automation**: Tools aren't straightforward here, but you can set up a script to ping a protected endpoint every minute and see when it starts failing. For idle, stop the pings after initial login and resume after the idle threshold to check if session died.\n- **Observation**: If the app has a “keep me logged in” or similar, that might override these timeouts. For testing, ensure any such options are not selected so you test default security behavior.",
+            "links": "- **OWASP WSTG** – *Testing Session Timeout (WSTG-SESS-07)* provides guidance on verifying idle and absolute timeouts:contentReference[oaicite:40]{index=40}.\n- **NIST SP 800-63B** – Section 7 discusses session binding and recommends 30 minute inactivity and 12 hour absolute session limits for high assurance sessions.",
+            "applic": "Applicable to any long-lived session management. N/A only for apps that don’t maintain sessions (like each request is re-authenticated, which is rare in web). Practically all web apps should implement some timeout, so this is almost always applicable.",
+            "sources": "WSTG-SESS-07; NIST 800-63B",
+            "tags": [
+              "session",
+              "timeout",
+              "idle",
+              "absolute",
+              "wstg"
+            ],
+            "subtasks": [
+              "Measure auto‑logout after inactivity.",
+              "Verify old tokens are rejected after absolute lifetime.",
+              "Check that timeout is enforced server-side (not just UI)."
+            ]
+          },
+          {
+            "title": "Concurrent session policy",
+            "done": false,
+            "hidden": false,
+            "priority": 2,
+            "asvs": "ASVS v5 V7.1.2 (document/limit concurrent sessions)",
+            "desc": "Determine if the application limits or manages multiple simultaneous sessions for the same user. Security best practices either limit the number of concurrent sessions or provide a way for users to view and revoke sessions on other devices:contentReference[oaicite:41]{index=41}. A lack of any policy means a user’s account could be logged in from unlimited devices without their knowledge, and if a token is stolen, the user might have no way to remotely kill that session. Some applications enforce a maximum (e.g., one session at a time), others allow many but show them in an \"active sessions\" list for user control. The goal is to mitigate prolonged unnoticed access.",
+            "tools": "- **Multi-Login Test**: Log in on two different browsers/devices with the same account. Observe behavior: does the second login invalidate the first (i.e., first is logged out)? Or are both active? If both remain active, see if there's an option in the account settings to view active sessions or to log them out.\n- **Session Management UI**: If the application provides a section (often in account/security settings) listing \"Active sessions\" or \"Logged in devices\", check that it accurately reflects your sessions. If available, test the \"logout other sessions\" or individual session revoke feature for functionality. For instance, click \"log out of other devices\" and verify that your other browser session is invalidated.\n- **Parallel Actions**: If multiple sessions are allowed, perform an action on one and see if the other is aware or remains unaffected (which it likely will). This is more to understand if the app has any user notification (some apps alert \"new login from X\"). Lack of alert is not a vulnerability per se but relevant info.\n- **Automated Scanning**: Not directly applicable, but some tools might flag if they detect unlimited session creation (not common for scanners). This is more a policy test.",
+            "links": "- **OWASP WSTG** – *Testing for Concurrent Session Management (WSTG-SESS-11)* gives guidelines on checking session limits and management:contentReference[oaicite:42]{index=42}.\n- **OWASP ASVS 4.0** – V3.3.4 suggests providing an option to terminate other sessions and V7.1.2 suggests documenting or limiting concurrent sessions for security.",
+            "applic": "N/A if the platform explicitly supports only one ephemeral session (e.g., device‑bound flow) and enforces this.\n\nApplicable to most applications that use long-lived sessions. Mark N/A only if the application explicitly uses one-time tokens that can't have concurrent usage (like ephemeral tokens that expire immediately) – very uncommon. If the application is single-session by design (e.g., logging in on one device logs out others), then a user-facing \"concurrent session\" UI may not be needed but the behavior should still be confirmed.",
+            "sources": "WSTG-SESS-11; ASVS 5.0\n\nWSTG-SESS-11; ASVS V3.3.4",
+            "tags": [
+              "session",
+              "concurrency",
+              "policy",
+              "wstg"
+            ],
+            "subtasks": [
+              "Log in from two browsers; observe whether both remain valid.",
+              "If policy disallows, confirm the first session is invalidated or forced logoff.",
+              "Verify presence and behavior of ‘active sessions’ management UI."
+            ]
+          }
+        ]
+      },
+      {
+        "name": "JWT / self-contained tokens",
+        "notes": "",
+        "items": [
+          {
+            "title": "JWT correctness (alg/keys/claims/expiry) & library safety",
+            "done": false,
+            "hidden": false,
+            "priority": 3,
+            "asvs": "ASVS v5 V1.2/V1.3 (encoding/sanitization ordering) and V7.* (session/token handling) as applicable",
+            "desc": "Disable ‘alg=none’; require strong algorithms (e.g., RS256/ES256 with proper keys), validate iss/aud/exp/nbf, keep expiries short, and verify library versions against known flaws. Refresh tokens must be bound and revocable.",
+            "tools": "Burp JWT Editor / JWT4B; decode/verify with CLI libs;",
+            "links": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/06-Session_Management_Testing/10-Testing_JSON_Web_Tokens;https://cheatsheetseries.owasp.org/cheatsheets/JSON_Web_Token_for_Java_Cheat_Sheet.html",
+            "applic": "Applicable whenever JWTs are used (cookies or Authorization header).",
+            "sources": "WSTG-SESS-10; OWASP JWT Cheat Sheet; Burp JWT Editor",
+            "tags": [
+              "jwt",
+              "tokens",
+              "burp",
+              "libraries"
+            ],
+            "subtasks": [
+              "Intercept JWTs; verify header/alg; ensure ‘none’ is rejected.",
+              "Validate iss/aud/exp/nbf; check expiration windows.",
+              "Attempt typical JWT attacks with Burp JWT tools (kid confusion, alg tampering) in a safe test environment."
+            ]
+          },
+          {
+            "title": "Token storage & CSRF trade‑offs",
+            "done": false,
+            "hidden": false,
+            "priority": 2,
+            "asvs": "ASVS v5 V1/V2 (encoding/validation) & V7 (session)",
+            "desc": "When using tokens (like JWTs) on the frontend, where you store them has security implications. Storing tokens in cookies means they are automatically sent with requests (convenient) but requires proper CSRF protection (SameSite, anti-CSRF tokens) since browsers will send them cross-site. Storing tokens in browser storage (localStorage/sessionStorage) avoids automatic inclusion (mitigating CSRF) but makes them accessible to JavaScript, increasing impact if XSS is present:contentReference[oaicite:49]{index=49}:contentReference[oaicite:50]{index=50}. The application should balance these trade-offs: if tokens are in cookies, ensure robust CSRF defenses; if in JS storage, ensure strong XSS protections (Content Security Policy, etc.). This item is about recognizing the trade-off and ensuring complementary controls are in place depending on the storage approach.",
+            "tools": "- **Identify Token Storage**: Determine where the app keeps its session or auth token. If it's a cookie (check browser devtools for cookies after login), note the HttpOnly/SameSite settings (CSRF defenses). If it's in localStorage (use devtools Application tab to see if a JWT appears there), then note that CSRF is naturally mitigated but XSS becomes higher risk.\n- **CSRF Defense Check** (if cookie-based): Verify that the app includes anti-CSRF measures on state-changing requests (look for hidden CSRF tokens in forms, or that SameSite cookies are in use, or that relevant headers like `Origin` are validated). You can attempt a CSRF attack from another domain to see if it's successful if no tokens are present.\n- **XSS Defense Check** (if storage-based): Review if the app has a strong Content Security Policy (CSP) via response headers (e.g., a CSP that disallows unsafe inline scripts and only loads scripts from trusted domains). Also consider using an XSS testing approach (like injecting `<script>` via any input) to gauge if XSS is possible. If XSS is trivially exploitable and tokens are in JS storage, that’s a dangerous combo.\n- **Tooling**: No direct automated tool for this specific check, since it's about architecture. But manual observation and targeted tests cover it. You might use **Burp** or **ZAP** to simulate cross-site requests or reflect script injection to see how the app might suffer in each scenario.",
+            "links": "https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html;https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html;https://developer.mozilla.org/en-US/docs/Web/Security/Practical_implementation_guides/Cookies\n\n- **OWASP Cheat Sheet – CSRF Prevention** – Discusses HttpOnly/SameSite cookies and the double-submit pattern, etc., which are relevant if cookies are used:contentReference[oaicite:51]{index=51}.\n- **OWASP Cheat Sheet – XSS Prevention** – If tokens are stored in JS, the app must rely heavily on XSS prevention; the cheat sheet gives strategies:contentReference[oaicite:52]{index=52}.\n- **MDN Web Docs** – *Cookies vs. token storage* (various articles) outline the pros/cons of cookies vs localStorage for auth tokens.",
+            "applic": "Applicable to modern web apps using JWT or similar tokens for auth. N/A if the app exclusively uses traditional server sessions (cookie + server-side session store) without JWTs. Otherwise, any app using tokens on the client side should consider this. Even if the app uses cookies for JWT, the same analysis applies (cookie flags + CSRF).",
+            "sources": "OWASP XSS & CSRF Cheat Sheets; MDN Cookie Security",
+            "tags": [
+              "jwt",
+              "csrf",
+              "xss",
+              "cookies",
+              "storage"
+            ],
+            "subtasks": [
+              "Check where tokens live (cookie vs storage).",
+              "If in cookies, verify SameSite/HttpOnly/Secure; if in storage, ensure robust XSS controls and CSP.",
+              "Confirm refresh token rotation and revocation."
+            ]
+          }
+        ]
+      },
+      {
+        "name": "CSRF protections",
+        "notes": "",
+        "items": [
+          {
+            "title": "Anti‑CSRF for all state‑changing requests",
+            "done": false,
+            "hidden": false,
+            "priority": 2,
+            "asvs": "ASVS v5 V3 & V7 (frontend/session) depending on architecture",
+            "desc": "Every state-changing (non-idempotent) request in the application should be protected against Cross-Site Request Forgery. This typically means that such requests require a valid, unpredictable CSRF token (or have SameSite cookies in effect and/or verify headers like Origin/Referer). Without CSRF defenses, an attacker could trick a user’s browser (while logged in) into making unintended requests (transferring funds, changing email, etc.) to the app:contentReference[oaicite:55]{index=55}:contentReference[oaicite:56]{index=56}. Ensuring a robust anti-CSRF mechanism (and consistent use on all relevant endpoints) prevents these silent attacks.",
+            "tools": "- **Token Presence**: For any form or state-changing function (POST/PUT/DELETE actions), check the requests (using browser dev tools or Burp) to see if a CSRF token is included (usually as a hidden form field or request header). If the application uses a JavaScript heavy front-end, see if API calls require a special header (like X-CSRF-Token) or if cookies have SameSite strict.\n- **Attempt CSRF**: Use Burp’s **CSRF PoC generator**: for a given POST request that performs a change, generate an HTML form and see if submitting that form from an external domain triggers the action in the target app. If the action succeeds without needing a token, that endpoint is vulnerable. Alternatively, manually craft a form or an image GET request (if it's a GET action, which it shouldn’t be for state change) to test it.\n- **Origin/Referer Checks**: If you suspect the app might rely on checking the Origin/Referer, you can test by sending requests with those headers manipulated or from various contexts. E.g., using an HTML `<form>` from another site (which will have a different Origin) to see if the request is rejected. Or use a tool to send a cross-domain AJAX with a custom Origin header.\n- **ZAP Extension**: OWASP ZAP has a Plug-n-Hack or active scan rule for CSRF. It can detect forms with no apparent token. Also, **Burp** extension \"CSRF Scanner\" can audit known routes for missing tokens. Use these to supplement manual analysis of common routes.",
+            "links": "https://owasp.org/www-project-web-security-testing-guide/stable/4-Web_Application_Security_Testing/06-Session_Management_Testing/05-Testing_for_Cross_Site_Request_Forgery;https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html;https://portswigger.net/burp/documentation/desktop/tools/engagement-tools/generate-csrf-poc",
+            "applic": "Applicable to any web application that has state-changing operations via HTTP requests (which is almost all). Mark N/A only if the application is purely read-only or uses a mechanism like requiring the user to enter password for every action (unusual) or if it’s an external integration where CSRF doesn’t apply. Virtually all web apps with sessions need CSRF protection.",
+            "sources": "WSTG-SESS-05; CSRF Cheat Sheet; Burp CSRF PoC",
+            "tags": [
+              "csrf",
+              "burp",
+              "tokens",
+              "wstg"
+            ],
+            "subtasks": [
+              "Enumerate unsafe endpoints; verify token presence and server validation.",
+              "Use Burp to generate PoCs and validate exploitability.",
+              "Check Origin/Referer validation and SameSite correctness."
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Advanced session risks",
+        "notes": "",
+        "items": [
+          {
+            "title": "Session puzzling / overloading",
+            "done": false,
+            "hidden": false,
+            "priority": 2,
+            "asvs": "ASVS v5 V7 (session state) and V2/V3 (logic/frontend) where relevant",
+            "desc": "Detect session variable overloading and flows that let an attacker set session context before authentication to bypass checks or escalate privileges.",
+            "tools": "Burp (Proxy/Repeater); code review (if available).",
+            "links": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/06-Session_Management_Testing/08-Testing_for_Session_Puzzling",
+            "applic": "Applicable to stateful apps with complex session context.",
+            "sources": "WSTG-SESS-08",
+            "tags": [
+              "session",
+              "logic",
+              "wstg"
+            ],
+            "subtasks": [
+              "Map pre‑auth and post‑auth flows; look for shared session variables.",
+              "Attempt to set identity‑related session keys pre‑auth; access privileged paths.",
+              "Confirm server resets context at auth."
+            ]
+          },
+          {
+            "title": "Session hijacking prevention (mixed content, HSTS, cookie scope)",
+            "done": false,
+            "hidden": false,
+            "priority": 2,
+            "asvs": "ASVS v5 V3 (frontend TLS/HSTS) & V7 (session)",
+            "desc": "Verify full HTTPS with HSTS (ideally includeSubDomains), no mixed content, and conservative cookie Domain/Path to limit theft across subdomains.",
+            "tools": "- **HTTPS Enforcement**: Check if the site is accessible via HTTP. Use **testssl.sh** or simply try `http://` in a browser. It should redirect to `https://`. If not, that’s a vulnerability (session could be hijacked over plaintext). Also examine the HTTP response headers for `Strict-Transport-Security` (HSTS). Tools like **SSL Labs** scan (Qualys SSL Labs) can verify HSTS presence and preload status.\n- **Mixed Content**: While browsing the authenticated parts of the app, open the browser console and look for warnings about mixed content (browsers usually log if any HTTP resources are loaded on an HTTPS page). Alternatively, use **Burp** or **ZAP** to see if any responses include references to http:// resources. Mixed content could allow certain man-in-the-middle script injection vectors.\n- **Cookie Domain/Path**: Inspect the session cookie attributes. If `Domain` is set loosely (like `.example.com` instead of `specific.example.com`), then any subdomain can potentially set cookies to impersonate that user. Also consider if there are subdomains you don't trust. If possible, try to set a cookie on a subdomain and see if it overrides the main domain’s one (this is more conceptual unless you control a subdomain in a test). Path should normally be `/` unless there’s a segmented app scenario; but if the application has multiple apps, ensure one app’s cookies aren’t accessible in another’s path inadvertently.\n- **Security Headers**: Check for HSTS via browser devtools network headers or use **cURL** (`curl -I https://app`). Look for `Strict-Transport-Security`. Also ensure its max-age is long (e.g., >=6 months) and includes `includeSubDomains` and `preload` if applicable (for comprehensive protection).",
+            "links": "https://owasp.org/www-project-web-security-testing-guide/stable/4-Web_Application_Security_Testing/06-Session_Management_Testing/09-Testing_for_Session_Hijacking;https://developer.mozilla.org/en-US/docs/Web/Security/Practical_implementation_guides/Cookies",
+            "applic": "Applicable to all web apps. If the app is internal-only and uses VPN, some might lax on HSTS (still best practice to have it). Mark N/A only if the app genuinely does not have a web interface (API only with different protections) or doesn’t use cookies at all (even then, transport security is still important for tokens). Essentially always relevant in a web context.",
+            "sources": "WSTG-SESS-09; MDN Cookie Security",
+            "tags": [
+              "session",
+              "hsts",
+              "cookies",
+              "wstg"
+            ],
+            "subtasks": [
+              "Check HSTS headers and preload status; verify no HTTP endpoints are reachable.",
+              "Confirm no mixed content on authenticated pages.",
+              "Validate cookie Domain/Path aren’t overly broad."
+            ]
           }
         ]
       }
@@ -3065,6 +3488,266 @@
                 "done": false,
                 "hidden": false
               }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Input validation fundamentals",
+        "notes": "",
+        "items": [
+          {
+            "title": "Central, server‑side positive validation (allow‑lists, schema)",
+            "done": false,
+            "hidden": false,
+            "priority": 3,
+            "asvs": "ASVS v5 V2.2 Input Validation",
+            "desc": "Validate all untrusted inputs at a trusted service layer using positive rules—types, ranges, formats—and, for APIs, JSON/XML schemas where feasible. Client‑side checks are for UX only.",
+            "tools": "Manual review of controllers/validators; Semgrep for missing validation patterns;",
+            "links": "https://scotthelme.co.uk/content/files/2025/06/OWASP_Application_Security_Verification_Standard_5.0.0_en.pdf;https://cheatsheetseries.owasp.org/cheatsheets/Input_Validation_Cheat_Sheet.html;https://owasp.org/www-project-web-security-testing-guide/stable/4-Web_Application_Security_Testing/07-Input_Validation_Testing/README",
+            "applic": "Always applicable to user‑ or system‑supplied data (query params, body, headers, cookies, files, webhooks, upstream APIs).",
+            "sources": "ASVS 5.0 V2.2; OWASP Input Validation Cheat Sheet; WSTG Input Validation overview",
+            "tags": [
+              "validation",
+              "server-side",
+              "schema",
+              "semgrep"
+            ],
+            "subtasks": [
+              "Inventory inputs (all trust boundaries).",
+              "Verify allow‑list checks (type, length, range, pattern).",
+              "For JSON/XML APIs, review schema enforcement (and XXE defenses for XML)."
+            ]
+          },
+          {
+            "title": "Boundary and consistency checks (lengths, ranges, cross‑field logic)",
+            "done": false,
+            "hidden": false,
+            "priority": 2,
+            "asvs": "ASVS v5 V2.1/V2.2 (documentation & validation); V1.4 (integer/memory safety where relevant)",
+            "desc": "Enforce limits to prevent integer overflows, regex DoS, and business‑logic abuse; validate cross‑field consistency (e.g., ZIP/suburb).",
+            "tools": "Burp Intruder/Turbo Intruder; ZAP fuzzer;",
+            "links": "https://scotthelme.co.uk/content/files/2025/06/OWASP_Application_Security_Verification_Standard_5.0.0_en.pdf",
+            "applic": "Applicable wherever numeric/string fields exist.",
+            "sources": "ASVS 5.0",
+            "tags": [
+              "validation",
+              "fuzzing",
+              "intruder",
+              "zap"
+            ],
+            "subtasks": [
+              "Probe min/max, nulls, and special characters.",
+              "Fuzz with high/negative/float values; detect truncation or wrap‑around.",
+              "Check multi‑field consistency rules (server‑side)."
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Contextual output encoding & sanitisation",
+        "notes": "",
+        "items": [
+          {
+            "title": "Encode by context (HTML/attr/JS/CSS/URL); perform encoding as the final step",
+            "done": false,
+            "hidden": false,
+            "priority": 3,
+            "asvs": "ASVS v5 V1.2 (injection prevention via correct encoding)",
+            "desc": "Apply output encoding specific to the sink (HTML, attribute, JS, CSS, URL) right before use. Avoid encoding too early and never store data permanently in encoded form.",
+            "tools": "Framework templating auto‑escaping; OWASP Java Encoder; secure template helpers;",
+            "links": "https://scotthelme.co.uk/content/files/2025/06/OWASP_Application_Security_Verification_Standard_5.0.0_en.pdf#page=24;https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html",
+            "applic": "Applicable to any rendering path (server‑side or client‑side templating).",
+            "sources": "ASVS 5.0 V1.2; OWASP XSS Prevention Cheat Sheet",
+            "tags": [
+              "encoding",
+              "xss",
+              "templating"
+            ],
+            "subtasks": [
+              "Identify sinks by context (HTML/body vs attribute vs JS/CSS/URL).",
+              "Verify correct encoder function is used per sink.",
+              "Ensure encoding occurs immediately before rendering."
+            ]
+          },
+          {
+            "title": "HTML sanitisation for rich‑text inputs (as a complement to encoding)",
+            "done": false,
+            "hidden": false,
+            "priority": 2,
+            "asvs": "ASVS v5 V1.3 (sanitization guidance)",
+            "desc": "When users author HTML (e.g., WYSIWYG), sanitise untrusted markup with an allow‑list sanitizer (e.g., DOMPurify) and still encode when rendering into other contexts.",
+            "tools": "DOMPurify; framework‑specific sanitizers;",
+            "links": "https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html;https://github.com/cure53/DOMPurify",
+            "applic": "Applicable where rich‑text/HTML uploads exist.",
+            "sources": "OWASP XSS Prevention Cheat Sheet; DOMPurify",
+            "tags": [
+              "sanitisation",
+              "xss",
+              "html"
+            ],
+            "subtasks": [
+              "Locate all rich‑text inputs.",
+              "Review sanitizer config (allowed tags/attrs/URLs).",
+              "Test with benign formatting and common XSS payloads to verify safety and functionality."
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Injection testing (data stores & interpreters)",
+        "notes": "",
+        "items": [
+          {
+            "title": "SQL injection (parameterization/ORM; detection with safe probes)",
+            "done": false,
+            "hidden": false,
+            "priority": 3,
+            "asvs": "ASVS v5 V1.2.4 (parameterized DB queries)",
+            "desc": "All queries must use parameterized APIs/ORMs. For testing, start with non‑destructive probes and confirm there’s no dynamic concatenation of untrusted input into query structure.",
+            "tools": "Burp (Backslash Powered Scanner, ActiveScan++); sqlmap (test env only); Nuclei templates; ffuf to discover parameters;",
+            "links": "https://owasp.org/www-project-web-security-testing-guide/stable/4-Web_Application_Security_Testing/07-Input_Validation_Testing/README;https://scotthelme.co.uk/content/files/2025/06/OWASP_Application_Security_Verification_Standard_5.0.0_en.pdf#page=25;https://github.com/sqlmapproject/sqlmap",
+            "applic": "Applicable to any data‑backed components (SQL/ORM).",
+            "sources": "WSTG Input Validation chapter; ASVS 5.0; sqlmap",
+            "tags": [
+              "sqli",
+              "parameterization",
+              "burp",
+              "sqlmap",
+              "nuclei",
+              "ffuf"
+            ],
+            "subtasks": [
+              "Enumerate parameters and inputs reaching queries.",
+              "Verify prepared statements/ORM usage; no string concatenation.",
+              "Use safe payloads and error/time‑based probes in non‑prod; confirm no impact on prod data."
+            ]
+          },
+          {
+            "title": "NoSQL/LDAP/XPath injection",
+            "done": false,
+            "hidden": false,
+            "priority": 2,
+            "asvs": "ASVS v5 V1.2.6/V1.2.7",
+            "desc": "Use safe query APIs for NoSQL (e.g., filter objects), escape/parameterize LDAP and XPath queries, and validate inputs to prevent structure manipulation.",
+            "tools": "Burp scanners; NoSQLMap (test env); targeted payloads;",
+            "links": "https://owasp.org/www-project-web-security-testing-guide/stable/4-Web_Application_Security_Testing/07-Input_Validation_Testing/06-Testing_for_LDAP_Injection;https://github.com/codingo/NoSQLMap",
+            "applic": "Applicable if the app queries directories, XML, or NoSQL stores.",
+            "sources": "WSTG-INPV-06; NoSQLMap",
+            "tags": [
+              "nosql",
+              "ldap",
+              "xpath",
+              "injection"
+            ],
+            "subtasks": [
+              "Map endpoints that query NoSQL/LDAP/XPath.",
+              "Attempt filter/object injection with benign payloads.",
+              "Confirm server uses safe query builders/param APIs."
+            ]
+          },
+          {
+            "title": "OS/command injection",
+            "done": false,
+            "hidden": false,
+            "priority": 3,
+            "asvs": "ASVS v5 V1.2.5",
+            "desc": "If the app shells out, ensure parameterized/safe wrappers and strict allow‑listing. Never pass raw user data to the shell.",
+            "tools": "Burp active checks; controlled time‑based probes in non‑prod;",
+            "links": "https://owasp.org/www-project-web-security-testing-guide/stable/4-Web_Application_Security_Testing/07-Input_Validation_Testing/12-Testing_for_Command_Injection;https://scotthelme.co.uk/content/files/2025/06/OWASP_Application_Security_Verification_Standard_5.0.0_en.pdf#page=25",
+            "applic": "Applicable when invoking OS commands.",
+            "sources": "WSTG-INPV-12; ASVS 5.0",
+            "tags": [
+              "command-injection",
+              "os",
+              "injection"
+            ],
+            "subtasks": [
+              "Identify all OS command boundaries.",
+              "Verify safe APIs and strict allow‑lists.",
+              "Probe with harmless metacharacters; confirm no execution."
+            ]
+          }
+        ]
+      },
+      {
+        "name": "HTTP‑level injection & header safety",
+        "notes": "",
+        "items": [
+          {
+            "title": "HTTP response splitting/smuggling & header injection",
+            "done": false,
+            "hidden": false,
+            "priority": 2,
+            "asvs": "ASVS v5 V1.2.1 (HTTP header encoding) & related transport controls",
+            "desc": "Ensure CRLF and header values are properly validated/encoded; test for splitting/smuggling between front proxies and origin.",
+            "tools": "Burp Repeater; specialized smuggling checks; ZAP; Nuclei templates;",
+            "links": "https://owasp.org/www-project-web-security-testing-guide/stable/4-Web_Application_Security_Testing/07-Input_Validation_Testing/15-Testing_for_HTTP_Splitting_Smuggling",
+            "applic": "Applicable to apps that reflect/forward header data or operate behind proxies.",
+            "sources": "WSTG-INPV-15",
+            "tags": [
+              "http",
+              "smuggling",
+              "headers",
+              "wstg"
+            ],
+            "subtasks": [
+              "Attempt CR/LF injection into headers.",
+              "Test CL/TE desync in non‑prod.",
+              "Verify safe header construction APIs."
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Template & client‑side injection",
+        "notes": "",
+        "items": [
+          {
+            "title": "Server‑side template injection (SSTI)",
+            "done": false,
+            "hidden": false,
+            "priority": 2,
+            "asvs": "ASVS v5 V1.2 (proper encoding/escaping at sink)",
+            "desc": "Dynamic templates must never evaluate untrusted data as code. Use strict template APIs and escaping; test with benign probes.",
+            "tools": "Burp; tplmap/SSTImap in controlled test env;",
+            "links": "https://owasp.org/www-project-web-security-testing-guide/stable/4-Web_Application_Security_Testing/07-Input_Validation_Testing/18-Testing_for_Server_side_Template_Injection;https://github.com/epinna/tplmap",
+            "applic": "Applicable where server‑side templating is used.",
+            "sources": "WSTG SSTI; tplmap",
+            "tags": [
+              "ssti",
+              "templates",
+              "tplmap"
+            ],
+            "subtasks": [
+              "Find dynamic template contexts.",
+              "Inject harmless markers and observe template behavior.",
+              "Confirm strict escaping/filters in use."
+            ]
+          },
+          {
+            "title": "Cross‑Site Scripting (Reflected, Stored, DOM)",
+            "done": false,
+            "hidden": false,
+            "priority": 3,
+            "asvs": "ASVS v5 V1.2/V1.3 & V3 (web frontend)",
+            "desc": "Verify contextual output encoding and safe DOM APIs. Test with non‑destructive payloads across HTML/attr/JS/URL contexts; DOM XSS requires client‑side sink/source review.",
+            "tools": "Burp (Backslash Powered Scanner, ActiveScan++); ZAP; Semgrep (client‑side sinks);",
+            "links": "https://owasp.org/www-project-web-security-testing-guide/stable/4-Web_Application_Security_Testing/07-Input_Validation_Testing/01-Testing_for_Reflected_Cross_Site_Scripting;https://owasp.org/www-project-web-security-testing-guide/stable/4-Web_Application_Security_Testing/07-Input_Validation_Testing/02-Testing_for_Stored_Cross_Site_Scripting;https://cheatsheetseries.owasp.org/cheatsheets/DOM_based_XSS_Prevention_Cheat_Sheet.html",
+            "applic": "Applicable to any rendering of untrusted data.",
+            "sources": "WSTG XSS tests; DOM XSS Cheat Sheet; Burp extensions",
+            "tags": [
+              "xss",
+              "encoding",
+              "dom",
+              "burp",
+              "zap",
+              "semgrep"
+            ],
+            "subtasks": [
+              "Map all render contexts; verify auto‑escaping and correct encoders.",
+              "Probe with safe payloads across contexts; review DOM sources/sinks.",
+              "Harden with CSP where feasible and remove dangerous APIs (e.g., eval)."
             ]
           }
         ]

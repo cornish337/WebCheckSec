@@ -165,6 +165,30 @@ footer {
   color: var(--muted); text-align: center; padding: 12px;
   font-size: 0.8rem;
 }
+  /* Diff modal */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.55);
+  display: none; align-items: center; justify-content: center; z-index: 9999;
+}
+.modal {
+  background: var(--card); color: var(--fg); border: 1px solid var(--border);
+  border-radius: 12px; width: 92vw; max-width: 1100px; max-height: 86vh;
+  overflow: auto; padding: 16px;
+}
+.modal h2 { margin-top: 0; }
+.diff-summary { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+.diff-chip {
+  background: #0f1722; border: 1px solid var(--border);
+  padding: 4px 8px; border-radius: 999px; color: var(--muted); font-size: 0.85rem;
+}
+.diff-item { border: 1px solid var(--border); border-radius: 10px; padding: 10px; margin: 8px 0; background: #0c1420; }
+.diff-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.diff-fields { margin-top: 8px; display: grid; grid-template-columns: 160px 1fr 1fr 210px; gap: 8px; align-items: start; }
+.diff-fields .hdr { color: var(--muted); font-size: 0.85rem; }
+.diff-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.modal-footer { display: flex; justify-content: space-between; gap: 10px; margin-top: 12px; }
+.kbd { border: 1px solid var(--border); padding: 1px 5px; border-radius: 6px; background:#0b1a2a; font-size: 0.8rem; }
+
 </style>
 </head>
 <body>
@@ -251,6 +275,62 @@ const rawData = [
     ]
   }
 ];
+/*** Patch B: Baseline & helpers ***/
+const BASELINE_KEY = "webchecklist_baseline_v1.0";
+
+/*** Policy defaults for the diff modal ***/
+const DIFF_DEFAULTS = {
+  import: {
+    // item field defaults
+    items: {
+      done: "incoming",     // booleans
+      hidden: "incoming",
+      priority: "incoming",
+      text: "append",       // asvs/desc/tools/links/applic/sources
+      tags: "union"         // union | incoming | current
+    },
+    notes: "append",        // subcategory notes
+    addedItems: true,       // pre-select added things to apply
+    addedSubtasks: true,
+    removedItems: false,    // do NOT default-delete
+    removedSubtasks: false
+  },
+  baseline: {
+    items: {
+      done: "current",
+      hidden: "current",
+      priority: "current",
+      text: "current",
+      tags: "current"
+    },
+    notes: "current",
+    addedItems: false,       // do not auto re-add deleted content
+    addedSubtasks: false,
+    removedItems: false,     // do not auto delete newly-created content
+    removedSubtasks: false
+  }
+};
+
+function getBaseline() {
+  try { return JSON.parse(localStorage.getItem(BASELINE_KEY) || "null"); }
+  catch { return null; }
+}
+function setBaseline(arr) {
+  localStorage.setItem(BASELINE_KEY, JSON.stringify(arr));
+}
+
+function deepClone(obj){ return JSON.parse(JSON.stringify(obj)); }
+function norm(s){ return String(s ?? "").trim().toLowerCase(); }
+function keyCat(cat){ return norm(cat) || "(no category)"; }
+function keySub(sub){ return norm(sub) || "(general)"; }
+function itemKey(cat, sub, title){ return `${keyCat(cat)}||${keySub(sub)}||${norm(title)||"(no title)"}`; }
+function subcatKey(cat, sub){ return `${keyCat(cat)}||${keySub(sub)}`; }
+function stKey(cat, sub, title, st){ return `${itemKey(cat, sub, title)}||st||${norm(st)}`; }
+
+function asSet(arr){ return new Set((arr||[]).map(s => String(s).trim()).filter(Boolean)); }
+function setsEqual(a,b){ if(a.size!==b.size) return false; for(const v of a) if(!b.has(v)) return false; return true; }
+function unionSets(a,b){ const out=new Set(a); for(const v of b) out.add(v); return out; }
+
 let collapsedState = {};
 function loadData() {
   try {
@@ -317,6 +397,737 @@ function createElem(tag, props = {}, ...children) {
   }
   return el;
 }
+
+/*** Patch C: Turn CSV/flat JSON/structured JSON into normalized structured data ***/
+
+// 1) If you haven't already, replace csvToObjects with the robust parser from my prior message.
+//    (Skip this if you already did.)  It prevents multi-line breakup in quoted fields. :contentReference[oaicite:3]{index=3}
+
+
+
+function rowsToStructured(rows) {
+  // Build structured: [{category, subcats:[{name, notes, items:[...]}]}]
+  const result = [];
+  const catMap = new Map(); // catKey -> catObj
+  const scMap = new Map();  // scKey  -> scObj
+
+  const getCat = (catName) => {
+    const ck = keyCat(catName);
+    let cat = catMap.get(ck);
+    if (!cat) {
+      cat = { category: catName || "(no category)", subcats: [] };
+      catMap.set(ck, cat); result.push(cat);
+    }
+    return cat;
+  };
+  const getSub = (cat, subName) => {
+    const sk = `${keyCat(cat.category)}||${keySub(subName)}`;
+    let sc = scMap.get(sk);
+    if (!sc) {
+      sc = { name: subName || "(General)", notes: "", items: [] };
+      scMap.set(sk, sc); cat.subcats.push(sc);
+    }
+    return sc;
+  };
+  const findOrAddItem = (sc, title) => {
+    const t = title || "(no title)";
+    let it = sc.items.find(i => norm(i.title) === norm(t));
+    if (!it) {
+      it = { title: t, done: false, hidden: false, priority: 2,
+             asvs: "", desc: "", tools: "", links: "", applic: "", sources: "",
+             tags: [], subtasks: [] };
+      sc.items.push(it);
+    }
+    return it;
+  };
+
+
+
+  for (const r of rows) {
+    const cat = getCat(r["Category"]);
+    const sc = getSub(cat, r["Sub Category"]);
+    // One row may be either an "item row" or a "subtask row" (or both).
+    const it = findOrAddItem(sc, r["Item"]);
+    // Aggregate main fields (append text, union tags)
+    const doneVal = String(r["Done"]||"").toLowerCase();
+    if (["true","1","yes"].includes(doneVal)) it.done = true;
+    if (["false","0","no"].includes(doneVal)) it.done = false;
+
+    const hidVal = String(r["Hidden"]||"").toLowerCase();
+    if (["true","1","yes"].includes(hidVal)) it.hidden = true;
+    if (["false","0","no"].includes(hidVal)) it.hidden = false;
+
+    if (r["Priority"] !== undefined && r["Priority"] !== "") {
+      const n = parseInt(r["Priority"]);
+      if (!Number.isNaN(n)) it.priority = Math.max(0, Math.min(3, n));
+    }
+    // Append text fields if present (dedupe simple repeats)
+    for (const [col, fld] of [
+      ["ASVS","asvs"],["Description","desc"],["Tools","tools"],
+      ["Links","links"],["Applicability","applic"],["Sources","sources"]
+    ]) {
+      if (r[col]) {
+        const v = String(r[col]);
+        if (!it[fld]) it[fld] = v;
+        else if (!it[fld].includes(v)) it[fld] += `\n\n${v}`;
+      }
+    }
+    // Tags (multi-word preserved; you changed splitter already—great)
+    if (r["Tags"]) {
+      const incoming = String(r["Tags"]).split(/[;,]+/).map(t => t.trim()).filter(Boolean);
+      it.tags = Array.from(unionSets(asSet(it.tags), asSet(incoming)));
+    }
+    // Subtask (optional)
+    const stText = (r["Subtask"]||"").trim();
+    if (stText) {
+      const stDone = ["true","1","yes"].includes(String(r["Subtask Done"]||"").toLowerCase());
+      const stHidden = ["true","1","yes"].includes(String(r["Subtask Hidden"]||"").toLowerCase());
+      const exists = it.subtasks.find(s => s.text === stText);
+      if (!exists) it.subtasks.push({ text: stText, done: stDone, hidden: stHidden });
+      else { exists.done = stDone; exists.hidden = stHidden; }
+    }
+    // Subcategory notes (first non-empty wins)
+    const note = (r["Subcategory Notes"]||"").trim();
+    if (note && !sc.notes) sc.notes = note;
+  }
+  return result;
+}
+
+function normalizeStructuredJSON(arr) {
+  // Accepts your structured format; ensures defaults to match schema.json. :contentReference[oaicite:4]{index=4}
+  const out = deepClone(arr);
+  out.forEach(cat => {
+    cat.category = cat.category || "(no category)";
+    cat.subcats = Array.isArray(cat.subcats) ? cat.subcats : [];
+    cat.subcats.forEach(sc => {
+      sc.name = sc.name || "(General)";
+      sc.notes = sc.notes || "";
+      sc.items = Array.isArray(sc.items) ? sc.items : [];
+      sc.items.forEach(it => {
+        if (it.hidden === undefined) it.hidden = false;
+        if (it.done === undefined) it.done = false;
+        if (it.priority === undefined) it.priority = 2;
+        it.tags = Array.isArray(it.tags) ? it.tags : (it.tags ? [String(it.tags)] : []);
+        it.asvs = it.asvs || "";
+        it.desc = it.desc || "";
+        it.tools = it.tools || "";
+        it.links = it.links || "";
+        it.applic = it.applic || "";
+        it.sources = it.sources || "";
+        it.subtasks = Array.isArray(it.subtasks) ? it.subtasks : [];
+        it.subtasks.forEach(st => {
+          if (st.done === undefined) st.done = false;
+          if (st.hidden === undefined) st.hidden = false;
+        });
+      });
+    });
+  });
+  return out;
+}
+
+function flatJSONToRows(arr) {
+  // Flat list of rows with same headers as CSV importer
+  return arr.map(o => ({
+    "Category": o["Category"] || "",
+    "Sub Category": o["Sub Category"] || "(General)",
+    "Item": o["Item"] || "(no title)",
+    "Done": o["Done"] || "",
+    "Subtask": o["Subtask"] || "",
+    "Subtask Done": o["Subtask Done"] || "",
+    "Subtask Hidden": o["Subtask Hidden"] || "",
+    "ASVS": o["ASVS"] || "",
+    "Description": o["Description"] || "",
+    "Tools": o["Tools"] || "",
+    "Links": o["Links"] || "",
+    "Applicability": o["Applicability"] || "",
+    "Sources": o["Sources"] || "",
+    "Tags": o["Tags"] || "",
+    "Priority": o["Priority"] ?? "",
+    "Hidden": o["Hidden"] || "",
+    "Subcategory Notes": o["Subcategory Notes"] || ""
+  }));
+}
+
+// Parse any incoming content to structured data we can diff against `data`
+function parseIncomingToStructured(fileName, content) {
+  const lower = fileName.toLowerCase();
+  if (lower.endsWith(".csv")) {
+    const rows = csvToObjects(content); // your function name; ensure robust version is in place. :contentReference[oaicite:5]{index=5}
+    return rowsToStructured(rows);
+  }
+  // JSON
+  const obj = JSON.parse(content);
+  if (!Array.isArray(obj)) throw new Error("Unsupported JSON format (expecting array).");
+  const looksStructured = obj.length > 0 && (("subcats" in obj[0]) || ("items" in obj[0]));
+  if (looksStructured) return normalizeStructuredJSON(obj);
+  return rowsToStructured(flatJSONToRows(obj));
+}
+
+/*** Patch D: Diff engine ***/
+function indexStructured(arr) {
+  const items = new Map();   // itemKey -> {cat, sub, it}
+  const subtasks = new Map();// stKey   -> {cat, sub, title, st}
+  const notes = new Map();   // subcatKey -> note
+  (arr||[]).forEach(cat => {
+    (cat.subcats||[]).forEach(sc => {
+      notes.set(subcatKey(cat.category, sc.name), sc.notes || "");
+      (sc.items||[]).forEach(it => {
+        items.set(itemKey(cat.category, sc.name, it.title), { cat, sub: sc, it });
+        (it.subtasks||[]).forEach(st => {
+          subtasks.set(stKey(cat.category, sc.name, it.title, st.text), { cat, sub: sc, title: it.title, st });
+        });
+      });
+    });
+  });
+  return { items, subtasks, notes };
+}
+
+function diffStructured(current, incoming, {considerDeletions=false} = {}) {
+  const A = indexStructured(current);
+  const B = indexStructured(incoming);
+
+  const addedItems = [];
+  const removedItems = [];
+  const changedItems = [];
+  const addedSubtasks = [];
+  const removedSubtasks = [];
+  const changedSubtasks = [];
+  const changedNotes = [];
+
+  // Items added/changed
+  for (const [k, b] of B.items) {
+    if (!A.items.has(k)) {
+      addedItems.push({ key: k, cat: b.cat.category, sub: b.sub.name, incoming: b.it });
+    } else {
+      const a = A.items.get(k).it;
+      const fields = {};
+      // compare scalars
+      for (const fld of ["done","hidden","priority","asvs","desc","tools","links","applic","sources"]) {
+        const av = a[fld] ?? (typeof a[fld] === "number" ? a[fld] : "");
+        const bv = b.it[fld] ?? (typeof b.it[fld] === "number" ? b.it[fld] : "");
+        const diff = (fld === "priority" ? (Number(av) !== Number(bv)) : (String(av) !== String(bv)));
+        if (diff) fields[fld] = { from: a[fld], to: b.it[fld] };
+      }
+      // tags
+      const at = asSet(a.tags||[]);
+      const bt = asSet(b.it.tags||[]);
+      if (!setsEqual(at, bt)) {
+        fields["tags"] = { from: Array.from(at), to: Array.from(bt),
+          add: Array.from(bt).filter(v => !at.has(v)),
+          remove: Array.from(at).filter(v => !bt.has(v))
+        };
+      }
+      if (Object.keys(fields).length) {
+        changedItems.push({ key: k, cat: b.cat.category, sub: b.sub.name, title: b.it.title, fields });
+      }
+    }
+  }
+  // Items removed (only if we want to surface them)
+  if (considerDeletions) {
+    for (const [k, a] of A.items) {
+      if (!B.items.has(k)) {
+        removedItems.push({ key: k, cat: a.cat.category, sub: a.sub.name, current: a.it });
+      }
+    }
+  }
+
+  // Subtasks added/changed
+  for (const [k, b] of B.subtasks) {
+    if (!A.subtasks.has(k)) {
+      addedSubtasks.push({ key: k, cat: b.cat.category, sub: b.sub.name, title: b.title, incoming: b.st });
+    } else {
+      const a = A.subtasks.get(k).st;
+      const fields = {};
+      if (!!a.done !== !!b.st.done) fields.done = { from: a.done, to: b.st.done };
+      if (!!a.hidden !== !!b.st.hidden) fields.hidden = { from: a.hidden, to: b.st.hidden };
+      if (Object.keys(fields).length) {
+        changedSubtasks.push({ key: k, cat: b.cat.category, sub: b.sub.name, title: b.title, text: b.st.text, fields });
+      }
+    }
+  }
+  if (considerDeletions) {
+    for (const [k, a] of A.subtasks) {
+      if (!B.subtasks.has(k)) {
+        removedSubtasks.push({ key: k, cat: a.cat.category, sub: a.sub.name, title: a.title, current: a.st });
+      }
+    }
+  }
+
+  // Subcategory notes changed
+  const allSC = new Set([...A.notes.keys(), ...B.notes.keys()]);
+  for (const sk of allSC) {
+    const av = A.notes.get(sk) || "";
+    const bv = B.notes.get(sk) || "";
+    if (String(av) !== String(bv)) {
+      const [catK, subK] = sk.split("||");
+      changedNotes.push({ key: sk, cat: catK, sub: subK, from: av, to: bv });
+    }
+  }
+
+  return { addedItems, removedItems, changedItems, addedSubtasks, removedSubtasks, changedSubtasks, changedNotes };
+}
+
+/*** Patch E: Modal UI + plan application ***/
+
+// Build and show the diff modal. `onApply(plan)` is called when user clicks Apply.
+function openDiffModal(
+  diff,
+  incomingStructured,
+  { title = "Review & Merge", showDeletions = false, policy = "import" } = {},
+  onApply
+) {
+  const defaults = DIFF_DEFAULTS[policy] || DIFF_DEFAULTS.import;
+
+  // Create overlay & modal elements
+  let overlay = document.querySelector(".modal-overlay");
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.className = "modal-overlay";
+    document.body.appendChild(overlay);
+  }
+
+  // Rebuild content fresh each time
+  overlay.innerHTML = "";
+  const modal = document.createElement("div");
+  modal.className = "modal";
+  overlay.appendChild(modal);
+
+  // Title
+  const h2 = document.createElement("h2");
+  h2.textContent = title;
+  modal.appendChild(h2);
+
+  // --- Summary chips ---
+  const sum = document.createElement("div");
+  sum.className = "diff-summary";
+  const chip = (txt) => {
+    const s = document.createElement("span");
+    s.className = "diff-chip";
+    s.textContent = txt;
+    return s;
+  };
+  sum.append(
+    chip(`+${diff.addedItems.length} items`),
+    chip(`${diff.changedItems.length} items changed`),
+    chip(`+${diff.addedSubtasks.length} subtasks`),
+    chip(`${diff.changedSubtasks.length} subtasks changed`)
+  );
+  if (showDeletions) {
+    sum.append(
+      chip(`−${diff.removedItems.length} items`),
+      chip(`−${diff.removedSubtasks.length} subtasks`)
+    );
+  }
+  if (diff.changedNotes.length) {
+    sum.append(chip(`${diff.changedNotes.length} subcategory notes changed`));
+  }
+  modal.appendChild(sum);
+
+  // --- Plan (user choices) with policy defaults ---
+  const plan = {
+    addItems: new Set(defaults.addedItems ? diff.addedItems.map(d => d.key) : []),
+    removeItems: new Set(showDeletions && defaults.removedItems ? diff.removedItems.map(d => d.key) : []),
+    itemFieldAction: new Map(),
+    addSubtasks: new Set(defaults.addSubtasks ? diff.addedSubtasks.map(d => d.key) : []),
+    removeSubtasks: new Set(showDeletions && defaults.removedSubtasks ? diff.removedSubtasks.map(d => d.key) : []),
+    stFieldAction: new Map(),
+    noteAction: new Map()
+  };
+
+  // Small helpers
+  const mkRadio = (name, value, label, checked, onChange) => {
+    const lb = document.createElement("label");
+    const rb = document.createElement("input");
+    rb.type = "radio"; rb.name = name; rb.value = value; rb.checked = checked;
+    rb.addEventListener("change", onChange);
+    lb.append(rb, " " + label);
+    return lb;
+  };
+  const fieldRow = (label, from, to, controls) => {
+    const wrap = document.createElement("div"); wrap.className = "diff-fields";
+    const l = document.createElement("div"); l.textContent = label;
+    const c1 = document.createElement("div"); c1.innerText = String(from ?? "");
+    const c2 = document.createElement("div"); c2.innerText = String(to ?? "");
+    const c3 = document.createElement("div"); c3.appendChild(controls);
+    wrap.append(l, c1, c2, c3);
+    return wrap;
+  };
+  const hdrRow = () => {
+    const hdr = document.createElement("div"); hdr.className="diff-fields";
+    ["Field","Current","Incoming","Action"].forEach(t => {
+      const el=document.createElement("div"); el.className="hdr"; el.textContent=t; hdr.append(el);
+    });
+    return hdr;
+  };
+
+  // --- Items to add ---
+  if (diff.addedItems.length) {
+    const h = document.createElement("h3"); h.textContent = "Items to add";
+    modal.appendChild(h);
+    diff.addedItems.forEach(d => {
+      const card = document.createElement("div"); card.className="diff-item";
+      const head = document.createElement("div"); head.className="diff-head";
+      head.innerHTML = `<div><strong>${d.incoming.title}</strong> — ${d.cat} ▸ ${d.sub}</div>`;
+      const lbl = document.createElement("label");
+      const cb  = document.createElement("input"); cb.type="checkbox"; cb.checked = plan.addItems.has(d.key);
+      cb.addEventListener("change", () => {
+        if (cb.checked) plan.addItems.add(d.key); else plan.addItems.delete(d.key);
+      });
+      lbl.append(cb, " Add this item");
+      head.append(lbl); card.append(head); modal.append(card);
+    });
+  }
+
+  // --- Items with changes ---
+  if (diff.changedItems.length) {
+    const h = document.createElement("h3"); h.textContent = "Items with changes";
+    modal.appendChild(h);
+
+    diff.changedItems.forEach(d => {
+      const card = document.createElement("div"); card.className="diff-item";
+      const head = document.createElement("div"); head.className="diff-head";
+      head.innerHTML = `<div><strong>${d.title}</strong> — ${d.cat} ▸ ${d.sub}</div>`;
+      card.append(head, hdrRow());
+
+      // scalars: done, hidden, priority
+      for (const f of ["done","hidden","priority"]) if (f in d.fields) {
+        const name = `${d.key}::${f}`;
+        const def = defaults.items[f] || "current"; // "current" | "incoming"
+        const controls = document.createElement("div");
+        const keep = mkRadio(name, "current", "Keep current", def === "current",
+          e => plan.itemFieldAction.set(d.key, { ...(plan.itemFieldAction.get(d.key)||{}), [f]: e.target.value })
+        );
+        const use  = mkRadio(name, "incoming", "Use incoming", def === "incoming",
+          e => plan.itemFieldAction.set(d.key, { ...(plan.itemFieldAction.get(d.key)||{}), [f]: e.target.value })
+        );
+        controls.append(keep, use);
+        // initialize
+        plan.itemFieldAction.set(d.key, { ...(plan.itemFieldAction.get(d.key)||{}), [f]: def });
+        card.append(fieldRow(f, d.fields[f].from, d.fields[f].to, controls));
+      }
+
+      // long text: asvs, desc, tools, links, applic, sources
+      for (const f of ["asvs","desc","tools","links","applic","sources"]) if (f in d.fields) {
+        const name = `${d.key}::${f}`;
+        const def = defaults.items.text; // "append" | "current" | "incoming"
+        const controls = document.createElement("div");
+        const keep = mkRadio(name, "current", "Keep current", def==="current",
+          e => plan.itemFieldAction.set(d.key, { ...(plan.itemFieldAction.get(d.key)||{}), [f]: e.target.value })
+        );
+        const use  = mkRadio(name, "incoming", "Use incoming", def==="incoming",
+          e => plan.itemFieldAction.set(d.key, { ...(plan.itemFieldAction.get(d.key)||{}), [f]: e.target.value })
+        );
+        const app  = mkRadio(name, "append", "Append incoming", def==="append",
+          e => plan.itemFieldAction.set(d.key, { ...(plan.itemFieldAction.get(d.key)||{}), [f]: e.target.value })
+        );
+        controls.append(keep, use, app);
+        plan.itemFieldAction.set(d.key, { ...(plan.itemFieldAction.get(d.key)||{}), [f]: def });
+        card.append(fieldRow(f, d.fields[f].from, d.fields[f].to, controls));
+      }
+
+      // tags
+      if ("tags" in d.fields) {
+        const name = `${d.key}::tags`;
+        const def = defaults.items.tags; // "union" | "incoming" | "current"
+        const controls = document.createElement("div");
+        const keep = mkRadio(name, "current", "Keep current", def==="current",
+          e => plan.itemFieldAction.set(d.key, { ...(plan.itemFieldAction.get(d.key)||{}), tags: e.target.value })
+        );
+        const use  = mkRadio(name, "incoming", "Use incoming (replace)", def==="incoming",
+          e => plan.itemFieldAction.set(d.key, { ...(plan.itemFieldAction.get(d.key)||{}), tags: e.target.value })
+        );
+        const uni  = mkRadio(name, "union", "Union (merge)", def==="union",
+          e => plan.itemFieldAction.set(d.key, { ...(plan.itemFieldAction.get(d.key)||{}), tags: e.target.value })
+        );
+        controls.append(keep, use, uni);
+        plan.itemFieldAction.set(d.key, { ...(plan.itemFieldAction.get(d.key)||{}), tags: def });
+        const fromArr = d.fields.tags.from || [], toArr = d.fields.tags.to || [];
+        card.append(fieldRow("tags", fromArr.join(", "), toArr.join(", "), controls));
+      }
+
+      modal.appendChild(card);
+    });
+  }
+
+  // --- Subtasks ---
+  if (diff.addedSubtasks.length || diff.changedSubtasks.length || (showDeletions && diff.removedSubtasks.length)) {
+    const h = document.createElement("h3"); h.textContent = "Subtasks";
+    modal.appendChild(h);
+
+    // Added subtasks
+    diff.addedSubtasks.forEach(d => {
+      const card = document.createElement("div"); card.className="diff-item";
+      const head = document.createElement("div"); head.className="diff-head";
+      head.innerHTML = `<div><strong>${d.title}</strong> — ${d.cat} ▸ ${d.sub} — <em>${d.incoming.text}</em></div>`;
+      const lbl = document.createElement("label");
+      const cb  = document.createElement("input"); cb.type="checkbox"; cb.checked = plan.addSubtasks.has(d.key);
+      cb.addEventListener("change", () => {
+        if (cb.checked) plan.addSubtasks.add(d.key); else plan.addSubtasks.delete(d.key);
+      });
+      lbl.append(cb, " Add this subtask");
+      head.append(lbl); card.append(head); modal.append(card);
+    });
+
+    // Changed subtasks
+    if (diff.changedSubtasks.length) {
+      diff.changedSubtasks.forEach(d => {
+        const card = document.createElement("div"); card.className="diff-item";
+        const head = document.createElement("div"); head.className="diff-head";
+        head.innerHTML = `<div><strong>${d.title}</strong> — ${d.cat} ▸ ${d.sub} — <em>${d.text}</em></div>`;
+        card.append(head, hdrRow());
+
+        for (const f of ["done","hidden"]) if (f in d.fields) {
+          const name = `${d.key}::st::${f}`;
+          const def = defaults.items[f] || "current";
+          const controls = document.createElement("div");
+          const keep = mkRadio(name, "current", "Keep current", def==="current",
+            e => plan.stFieldAction.set(d.key, { ...(plan.stFieldAction.get(d.key)||{}), [f]: e.target.value })
+          );
+          const use  = mkRadio(name, "incoming", "Use incoming", def==="incoming",
+            e => plan.stFieldAction.set(d.key, { ...(plan.stFieldAction.get(d.key)||{}), [f]: e.target.value })
+          );
+          controls.append(keep, use);
+          plan.stFieldAction.set(d.key, { ...(plan.stFieldAction.get(d.key)||{}), [f]: def });
+          card.append(fieldRow(f, d.fields[f].from, d.fields[f].to, controls));
+        }
+
+        modal.appendChild(card);
+      });
+    }
+
+    // Removed subtasks
+    if (showDeletions && diff.removedSubtasks.length) {
+      const h2 = document.createElement("h4"); h2.textContent = "Subtasks to delete (present only in Current)";
+      modal.appendChild(h2);
+      diff.removedSubtasks.forEach(d => {
+        const card = document.createElement("div"); card.className="diff-item";
+        const head = document.createElement("div"); head.className="diff-head";
+        head.innerHTML = `<div><strong>${d.title}</strong> — ${d.cat} ▸ ${d.sub} — <em>${d.current.text}</em></div>`;
+        const lbl = document.createElement("label");
+        const cb  = document.createElement("input"); cb.type="checkbox"; cb.checked = plan.removeSubtasks.has(d.key);
+        cb.addEventListener("change", () => {
+          if (cb.checked) plan.removeSubtasks.add(d.key); else plan.removeSubtasks.delete(d.key);
+        });
+        lbl.append(cb, " Delete this subtask");
+        head.append(lbl); card.append(head); modal.append(card);
+      });
+    }
+  }
+
+  // --- Items to delete (optional) ---
+  if (showDeletions && diff.removedItems.length) {
+    const h = document.createElement("h3"); h.textContent = "Items to delete (present only in Current)";
+    modal.appendChild(h);
+    diff.removedItems.forEach(d => {
+      const card = document.createElement("div"); card.className="diff-item";
+      const head = document.createElement("div"); head.className="diff-head";
+      head.innerHTML = `<div><strong>${d.current.title}</strong> — ${d.cat} ▸ ${d.sub}</div>`;
+      const lbl = document.createElement("label");
+      const cb  = document.createElement("input"); cb.type="checkbox"; cb.checked = plan.removeItems.has(d.key);
+      cb.addEventListener("change", () => {
+        if (cb.checked) plan.removeItems.add(d.key); else plan.removeItems.delete(d.key);
+      });
+      lbl.append(cb, " Delete this item");
+      head.append(lbl); card.append(head); modal.append(card);
+    });
+  }
+
+  // --- Subcategory notes ---
+  if (diff.changedNotes.length) {
+    const h = document.createElement("h3"); h.textContent = "Subcategory notes changed";
+    modal.appendChild(h);
+    diff.changedNotes.forEach(n => {
+      const card = document.createElement("div"); card.className="diff-item";
+      const head = document.createElement("div"); head.className="diff-head";
+      head.innerHTML = `<div><strong>${n.cat} ▸ ${n.sub}</strong></div>`;
+      card.append(head);
+
+      const name = `${n.key}::note`;
+      const def = DIFF_DEFAULTS[policy]?.notes || "append";
+      const controls = document.createElement("div");
+      const keep = mkRadio(name, "current", "Keep current", def==="current",
+        e => plan.noteAction.set(n.key, e.target.value)
+      );
+      const use  = mkRadio(name, "incoming", "Use incoming", def==="incoming",
+        e => plan.noteAction.set(n.key, e.target.value)
+      );
+      const app  = mkRadio(name, "append", "Append incoming to current", def==="append",
+        e => plan.noteAction.set(n.key, e.target.value)
+      );
+      plan.noteAction.set(n.key, def);
+      controls.append(keep, use, app);
+
+      const row = fieldRow("Notes", n.from || "", n.to || "", controls);
+      card.append(row); modal.appendChild(card);
+    });
+  }
+
+  // --- Footer buttons ---
+  const foot = document.createElement("div"); foot.className = "modal-footer";
+  const left = document.createElement("div"); const right = document.createElement("div");
+
+  const closeBtn = document.createElement("button");
+  closeBtn.textContent = "Close";
+  closeBtn.addEventListener("click", () => overlay.style.display = "none");
+
+  const dlPatch = document.createElement("button");
+  dlPatch.textContent = "Download patch (JSON)";
+  dlPatch.addEventListener("click", () => {
+    const patch = {
+      addItems: Array.from(plan.addItems),
+      removeItems: Array.from(plan.removeItems),
+      itemFieldAction: Array.from(plan.itemFieldAction.entries()),
+      addSubtasks: Array.from(plan.addSubtasks),
+      removeSubtasks: Array.from(plan.removeSubtasks),
+      stFieldAction: Array.from(plan.stFieldAction.entries()),
+      noteAction: Array.from(plan.noteAction.entries())
+    };
+    const blob = new Blob([JSON.stringify(patch, null, 2)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "webapp_checklist_patch.json";
+    document.body.appendChild(a); a.click(); a.remove();
+  });
+
+  const applyBtn = document.createElement("button");
+  applyBtn.textContent = "Apply selected changes";
+  applyBtn.addEventListener("click", () => {
+    try {
+      onApply(plan, incomingStructured);
+    } finally {
+      overlay.style.display = "none";
+    }
+  });
+
+  left.appendChild(closeBtn);
+  right.append(dlPatch, applyBtn);
+  foot.append(left, right);
+  modal.appendChild(foot);
+
+  // Overlay interactions
+  overlay.addEventListener("click", e => { if (e.target === overlay) overlay.style.display = "none"; });
+  document.addEventListener("keydown", function escOnce(ev){
+    if (ev.key === "Escape") { overlay.style.display = "none"; document.removeEventListener("keydown", escOnce); }
+  });
+
+  overlay.style.display = "flex";
+}
+
+// Apply the plan to your live `data` using your ensure* functions. :contentReference[oaicite:6]{index=6}
+function applyDiffPlan(plan, incomingStructured) {
+  // Helper: locate subcat reference quickly
+  function locateSubcat(catName, subName) {
+    const cat = ensureCategory(data, catName);
+    return ensureSubcat(cat, subName);
+  }
+
+  // Build incoming index for quick lookups
+  const incIdx = indexStructured(incomingStructured);
+
+  // 1) Added items
+  for (const k of plan.addItems) {
+    const rec = incIdx.items.get(k);
+    if (!rec) continue;
+    const sc = locateSubcat(rec.cat.category, rec.sub.name);
+    const it = ensureItem(sc, rec.it.title);
+    Object.assign(it, deepClone(rec.it)); // copy all fields
+  }
+
+  // 2) Changed items (per-field decisions)
+  for (const [k, fldMap] of plan.itemFieldAction.entries()) {
+    const rec = incIdx.items.get(k);
+    if (!rec) continue;
+    const sc = locateSubcat(rec.cat.category, rec.sub.name);
+    const it = ensureItem(sc, rec.it.title);
+
+    for (const [fld, action] of Object.entries(fldMap)) {
+      if (fld === "tags") {
+        if (action === "incoming") it.tags = deepClone(rec.it.tags || []);
+        else if (action === "union") it.tags = Array.from(unionSets(asSet(it.tags||[]), asSet(rec.it.tags||[])));
+        // "current" means leave as-is
+      } else if (["asvs","desc","tools","links","applic","sources"].includes(fld)) {
+        const curr = it[fld] || "";
+        const inc  = rec.it[fld] || "";
+        if (action === "incoming") it[fld] = inc;
+        else if (action === "append") {
+          if (!curr) it[fld] = inc;
+          else if (inc && !curr.includes(inc)) it[fld] = `${curr}\n\n${inc}`;
+        }
+        // "current" = no change
+      } else if (["done","hidden"].includes(fld)) {
+        if (action === "incoming") it[fld] = !!rec.it[fld];
+      } else if (fld === "priority") {
+        if (action === "incoming") it.priority = Number(rec.it.priority ?? 2);
+      }
+    }
+  }
+
+  // 3) Added subtasks
+  for (const k of plan.addSubtasks) {
+    const rec = incIdx.subtasks.get(k);
+    if (!rec) continue;
+    const sc = locateSubcat(rec.cat.category, rec.sub.name);
+    const it = ensureItem(sc, rec.title);
+    const exists = (it.subtasks||[]).find(s => norm(s.text) === norm(rec.st.text));
+    if (!exists) {
+      it.subtasks = it.subtasks || [];
+      it.subtasks.push(deepClone(rec.st));
+    }
+  }
+
+  // 4) Changed subtasks
+  for (const [k, fldMap] of plan.stFieldAction.entries()) {
+    const rec = incIdx.subtasks.get(k);
+    if (!rec) continue;
+    const sc = locateSubcat(rec.cat.category, rec.sub.name);
+    const it = ensureItem(sc, rec.title);
+    const st = (it.subtasks||[]).find(s => norm(s.text) === norm(rec.st.text));
+    if (!st) continue;
+    for (const [fld, action] of Object.entries(fldMap)) {
+      if (action === "incoming") st[fld] = !!rec.st[fld];
+    }
+  }
+
+  // 5) Notes
+  for (const [sk, action] of plan.noteAction.entries()) {
+    const [catK, subK] = sk.split("||");
+    const catName = catK; const subName = subK;
+    const sc = locateSubcat(catName, subName);
+    const curr = sc.notes || "";
+    const inc  = (incIdx.notes.get(sk) || "");
+    if (action === "incoming") sc.notes = inc;
+    else if (action === "append") {
+      if (!curr) sc.notes = inc;
+      else if (inc && !curr.includes(inc)) sc.notes = `${curr}\n${inc}`;
+    }
+  }
+
+  // 6) Removals (only if user opted-in to show/select deletions)
+  for (const k of plan.removeSubtasks) {
+    const rec = incIdx.subtasks.get(k); // note: for deletions we'd need to look up from CURRENT not incoming
+    // simple fallback: compute path from key
+    const parts = k.split("||");
+    const catName = parts[0], subName = parts[1], title = parts[2], stText = parts.slice(4).join("||").replace(/^st\|\|/, "");
+    const sc = locateSubcat(catName, subName);
+    const it = ensureItem(sc, title);
+    it.subtasks = (it.subtasks||[]).filter(s => norm(s.text) !== norm(stText));
+  }
+  for (const k of plan.removeItems) {
+    const parts = k.split("||");
+    const catName = parts[0], subName = parts[1], title = parts[2];
+    const cat = ensureCategory(data, catName);
+    const sc = ensureSubcat(cat, subName);
+    sc.items = (sc.items||[]).filter(i => norm(i.title) !== norm(title));
+  }
+
+  saveData();
+  collapseAll();
+  render();
+}
+
+
+
+
 // Updated Utility: parse CSV text into array of row objects
 function csvToObjects(csvText) {
   // State machine CSV parser that supports:
@@ -802,7 +1613,7 @@ function render() {
             }
           });
 
-          if (related.size > 0) {
+          if (related.size < 0) {
             const relHeading = createElem("div", { className: "item-meta" }, "Related items:");
             const relList = createElem("ul", { className: "related-list" });
             related.forEach((rid, title) => {
@@ -921,108 +1732,98 @@ $("#exportCSV").addEventListener("click", () => {
   statusPill.textContent = `Exported ${filename} at ${new Date().toLocaleTimeString()}`;
   statusPill.style.display = "inline-block";
 });
+/*** Patch F: Enhanced import handler with diff ***/
 $("#fileInput").addEventListener("change", event => {
   const file = event.target.files[0];
   if (!file) return;
 
-  const wantsMerge = confirm("Do you want to MERGE the imported data with the current checklist?");
-
-  let mode;
-  if (wantsMerge) {
-    mode = 'merge';
-  } else {
-    const wantsReplace = confirm("Do you want to REPLACE the current checklist with the imported data?");
-    if (wantsReplace) {
-      mode = 'replace';
-    } else {
-      event.target.value = ""; // Clear file input
-      return; // User cancelled both
-    }
+  // Choose high-level mode
+  const wantsReview = confirm("Do you want to REVIEW & SELECT changes before applying?");
+  let mode = null;
+  if (!wantsReview) {
+    const wantsMerge = confirm("Do you want to MERGE the imported data with the current checklist?");
+    if (wantsMerge) mode = "merge";
+    else if (confirm("Do you want to REPLACE the current checklist with the imported data?")) mode = "replace";
+    else { event.target.value = ""; return; }
   }
 
   const reader = new FileReader();
   reader.onload = e => {
     try {
       const content = e.target.result;
-      const name = file.name.toLowerCase();
+      const name = file.name;
 
-      if (mode === 'replace') {
-        data = [];
-        localStorage.removeItem(STORAGE_KEY);
-        localStorage.removeItem(COLLAPSE_KEY);
-        collapsedState = {};
+      // Parse any incoming into a normalized structured form
+      const incomingStructured = parseIncomingToStructured(name, content);
+
+      if (wantsReview) {
+        // Build diff (show deletions only if Replace semantics are desired)
+        const diff = diffStructured(data, incomingStructured, { considerDeletions: true });
+        openDiffModal(
+          diff,
+          incomingStructured,
+          { title: `Review & Merge — ${name}`, showDeletions: true, policy: "import" },
+          (plan /*, incomingStructured captured from closure */) => {
+            applyDiffPlan(plan, incomingStructured);
+            setBaseline(deepClone(data));
+            const statusPill = $("#status-message");
+            statusPill.textContent = `Imported (reviewed): ${file.name}`;
+            statusPill.style.display = 'inline-block';
+            event.target.value = "";
+            $("#search").focus();
+          }
+        );
+        return; // handled via modal
       }
-      // For 'merge', we use the existing 'data' array.
 
-      if (name.endsWith(".json")) {
-        const importedObj = JSON.parse(content);
-        if (!Array.isArray(importedObj)) {
-          alert("Unsupported JSON format. Expecting an array of objects.");
-          return;
-        }
-
-        const isStructured = importedObj.length > 0 && ("subcats" in importedObj[0] || "items" in importedObj[0]);
-
-        if (isStructured) {
-          if (mode === 'merge') {
-            alert("Merging structured JSON is not supported. Please use a flat list of items (like a CSV converted to JSON).");
-            return;
-          }
-          // Replace with structured JSON
-          if ("category" in importedObj[0] && "items" in importedObj[0] && !("subcats" in importedObj[0])) {
-             // This is the old format transformation logic. It creates a new `data` array.
-             // It should only run in replace mode.
-            data = importedObj.map(oldCat => {
-              const newCat = { category: oldCat.category, subcats: [] };
-              const defaultSub = { name: "(General)", notes: "", items: [] };
-              (oldCat.items || []).forEach(item => {
-                const newItem = {
-                  title: item.title || "(no title)",
-                  done: false,
-                  hidden: false,
-                  priority: 2,
-                  asvs: item.asvs || "",
-                  desc: item.simple_desc || item.desc || "",
-                  tools: item.tools || "",
-                  links: item.references || item.links || "",
-                  applic: item.applicability || "",
-                  sources: (Array.isArray(item.sources) ? item.sources.join("\n") : item.sources) || "",
-                  tags: item.tags || [],
-                  subtasks: []
-                };
-                defaultSub.items.push(newItem);
+      // Non-review paths: preserve original behavior with better parsing
+      if (mode === "replace") {
+        data = normalizeStructuredJSON(incomingStructured); // just to be safe
+      } else if (mode === "merge") {
+        // Merge once using your existing row->merge logic to keep behavior. We convert structured to "rows" first.
+        // Simpler: directly deep-merge by iterating incomingStructured using your ensure* helpers
+        incomingStructured.forEach(cat => {
+          const catRef = ensureCategory(data, cat.category);
+          (cat.subcats||[]).forEach(sc => {
+            const scRef = ensureSubcat(catRef, sc.name);
+            if (sc.notes) scRef.notes = scRef.notes ? `${scRef.notes}\n${sc.notes}` : sc.notes;
+            (sc.items||[]).forEach(it => {
+              const itRef = ensureItem(scRef, it.title);
+              // conservative merge: OR done, keep hidden strictly, max priority, append text, union tags
+              itRef.done = itRef.done || !!it.done;
+              itRef.hidden = !!it.hidden;
+              itRef.priority = Math.max(itRef.priority ?? 2, it.priority ?? 2);
+              ["asvs","desc","tools","links","applic","sources"].forEach(f => {
+                if (it[f]) itRef[f] = itRef[f] ? `${itRef[f]}\n\n${it[f]}` : it[f];
               });
-              newCat.subcats.push(defaultSub);
-              return newCat;
+              itRef.tags = Array.from(unionSets(asSet(itRef.tags||[]), asSet(it.tags||[])));
+              (it.subtasks||[]).forEach(st => {
+                itRef.subtasks = itRef.subtasks || [];
+                const ex = itRef.subtasks.find(s => norm(s.text) === norm(st.text));
+                if (!ex) itRef.subtasks.push({ text: st.text, done: !!st.done, hidden: !!st.hidden });
+                else { ex.done = ex.done || !!st.done; ex.hidden = !!st.hidden; }
+              });
             });
-          } else { // Assumes new, correct format
-            data = importedObj;
-          }
-        } else {
-          // Flat list of items, can be merged or replaced.
-          mergePrefillRows(importedObj);
-        }
-
-      } else if (name.endsWith(".csv")) {
-        const rows = csvToObjects(content);
-        mergePrefillRows(rows);
+          });
+        });
       } else {
-        alert("Unsupported file type. Please import a .csv or .json file.");
+        alert("No import mode selected.");
         return;
       }
 
       saveData();
       collapseAll();
       render();
+      // Update baseline after successful import
+      setBaseline(deepClone(data));
       const statusPill = $("#status-message");
       statusPill.textContent = `Imported: ${file.name} (${mode})`;
       statusPill.style.display = 'inline-block';
-
     } catch (err) {
       console.error("Import failed:", err);
       alert("Failed to import: " + err.message);
     } finally {
-        event.target.value = ""; // Clear file input
+      event.target.value = "";
     }
   };
   reader.readAsText(file);
